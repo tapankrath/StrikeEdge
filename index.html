@@ -276,16 +276,32 @@ body{padding-top:env(safe-area-inset-top)}
     <!-- LOGO -->
     <div class="logo-mark">
       <svg viewBox="0 0 42 42" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <!-- Geometric strike mark: two overlapping triangles forming a sharp diamond/blade -->
-        <rect width="42" height="42" rx="10" fill="#0f1629"/>
-        <!-- Left blade -->
-        <polygon points="6,36 21,6 21,22" fill="#ff6b35" opacity="1"/>
-        <!-- Right blade -->
-        <polygon points="36,36 21,6 21,22" fill="#ff6b35" opacity="0.45"/>
-        <!-- Center spine -->
-        <line x1="21" y1="6" x2="21" y2="36" stroke="#ff6b35" stroke-width="1.5" opacity="0.6"/>
-        <!-- Base bar -->
-        <rect x="8" y="34" width="26" height="2.5" rx="1.25" fill="#ff6b35" opacity="0.5"/>
+        <defs>
+          <linearGradient id="bgGrad" x1="0" y1="0" x2="42" y2="42" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#0d1f14"/>
+            <stop offset="100%" stop-color="#0f1629"/>
+          </linearGradient>
+          <linearGradient id="strikeGrad" x1="6" y1="8" x2="30" y2="36" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#00e676"/>
+            <stop offset="100%" stop-color="#ff6b35"/>
+          </linearGradient>
+        </defs>
+        <!-- Square bg -->
+        <rect width="42" height="42" rx="8" fill="url(#bgGrad)"/>
+        <!-- Left candle (green) -->
+        <rect x="9" y="14" width="5" height="18" rx="1.5" fill="#00e676" stroke="#00e676" stroke-width="1" stroke-opacity="0.6"/>
+        <line x1="11.5" y1="10" x2="11.5" y2="14" stroke="#00e676" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="11.5" y1="32" x2="11.5" y2="35" stroke="#00e676" stroke-width="1.5" stroke-linecap="round"/>
+        <!-- Center candle (gradient, tallest) -->
+        <rect x="18.5" y="9" width="5" height="22" rx="1.5" fill="url(#strikeGrad)" stroke="#ff6b35" stroke-width="1" stroke-opacity="0.7"/>
+        <line x1="21" y1="5" x2="21" y2="9" stroke="#ff6b35" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="21" y1="31" x2="21" y2="36" stroke="#00e676" stroke-width="1.5" stroke-linecap="round"/>
+        <!-- Right candle (orange) -->
+        <rect x="28" y="18" width="5" height="13" rx="1.5" fill="#ff6b35" stroke="#ff6b35" stroke-width="1" stroke-opacity="0.6"/>
+        <line x1="30.5" y1="14" x2="30.5" y2="18" stroke="#ff6b35" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="30.5" y1="31" x2="30.5" y2="34" stroke="#ff6b35" stroke-width="1.5" stroke-linecap="round"/>
+        <!-- Diagonal strike line -->
+        <line x1="5" y1="28" x2="37" y2="13" stroke="rgba(255,255,255,0.18)" stroke-width="1" stroke-linecap="round"/>
       </svg>
     </div>
     <div class="brand-text">
