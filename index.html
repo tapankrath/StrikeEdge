@@ -344,16 +344,24 @@ body{padding-top:env(safe-area-inset-top)}
 
   <!-- LANDING VIEW -->
   <div id="landing-view">
-    <!-- Ticker row -->
-    <div class="ticker-row" style="margin-top:6px">
-      <button class="ticker-pill on" id="pill-SPY" onclick="selectTicker('SPY')">SPY</button>
-      <button class="ticker-pill" id="pill-QQQ" onclick="selectTicker('QQQ')">QQQ</button>
-      <div class="ticker-search">
-        <input class="ticker-inp" id="sig-inp" placeholder="AAPL, NVDA..." maxlength="6"
+
+    <!-- STICKY: input + pills + Go -->
+    <div style="position:sticky;top:var(--hdr-h,130px);z-index:100;background:var(--bg);padding:10px 0 8px;margin:-16px -14px 12px;padding-left:14px;padding-right:14px;border-bottom:1px solid var(--border)">
+
+      <!-- Add ticker input -->
+      <div style="display:flex;gap:6px;margin-bottom:10px">
+        <input class="ticker-inp" id="sig-inp" placeholder="AAPL, NVDA, SPY…" maxlength="6"
+          style="flex:1;border-radius:10px;border:1.5px solid var(--border);background:var(--s2);padding:10px 14px;color:var(--text);font-size:15px;font-weight:800;text-transform:uppercase"
           oninput="this.value=this.value.toUpperCase()"
-          onkeydown="if(event.key==='Enter')analyzeCustom()">
-        <button class="ticker-go" onclick="analyzeCustom()">Go</button>
+          onkeydown="if(event.key==='Enter')addTicker()">
+        <button onclick="addTicker()" style="background:var(--s3);border:1.5px solid var(--border2);color:var(--dim);border-radius:10px;padding:10px 18px;font-size:20px;font-weight:900;line-height:1;min-width:48px">+</button>
       </div>
+
+      <!-- Ticker pills (horizontal wrap) -->
+      <div id="ticker-list" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;min-height:20px"></div>
+
+      <!-- Go button -->
+      <button class="btn-primary" id="go-btn" onclick="runFromList()" style="margin-bottom:0">Go</button>
     </div>
 
     <!-- Trade settings — compact 3-col row -->
@@ -384,7 +392,7 @@ body{padding-top:env(safe-area-inset-top)}
     <div style="padding:14px;background:var(--s1);border:1px solid var(--border);border-radius:12px">
       <div style="font-size:12px;color:var(--dim);line-height:1.8">
         <strong style="color:var(--text);font-size:13px">StrikeEdge</strong> gives you an AI-powered edge on every options trade.
-        Tap <span style="color:var(--accent);font-weight:800">SPY</span> or <span style="color:var(--amber);font-weight:800">QQQ</span> to analyze instantly — or type any ticker and hit <strong style="color:var(--text)">Go</strong>. Set your capital, risk %, and DTE above and every strategy recommendation will be sized to your actual trade parameters.
+        Type any ticker and hit <strong style="color:var(--accent)">+</strong> to save it to your list. Tap a ticker to select it, then hit <strong style="color:var(--text)">Go</strong>. Set your capital, risk %, and DTE above and every strategy will be sized to your parameters.
       </div>
     </div>
   </div>
@@ -583,25 +591,24 @@ var plScenario = 'spike';
 var positions = [];
 var priceCache = {};
 
-// ── INIT ──
-(function init(){
+// ── INIT (called at bottom after all functions defined) ──
+function appInit(){
   CLAUDE_KEY = localStorage.getItem('se_claude') || '';
   TD_KEY = localStorage.getItem('se_td') || '';
   updateKeysBtn();
   initPriceCards();
   loadPrices();
   loadMacro();
-  // Restore trade settings
   var cap = localStorage.getItem('se_capital');
   var risk = localStorage.getItem('se_risk');
   var dte = localStorage.getItem('se_dte');
   if(cap) document.getElementById('land-capital').value = cap;
   if(risk) document.getElementById('land-risk').value = risk;
   if(dte){ var sel = document.getElementById('land-dte'); if(sel) sel.value = dte; }
-  // Load portfolio
   try{ positions = JSON.parse(localStorage.getItem('se_positions')||'[]'); }catch(e){ positions=[]; }
   renderPortfolio();
-})();
+  initTickerList();
+}
 
 // ── SETTINGS ──
 function openSettings(){
@@ -750,44 +757,90 @@ function loadMacro(){
 // ═══════════════════════════════════════════════════════
 //  ANALYZE TAB — combined signal + strategy
 // ═══════════════════════════════════════════════════════
-var currentAnalyzeTicker = 'SPY';
+// ═══════════════════════════════════════════════════════
+//  ANALYZE TAB — ticker list + go
+// ═══════════════════════════════════════════════════════
+var currentAnalyzeTicker = '';
+var tickerList = [];
+
+function initTickerList(){
+  try{ tickerList = JSON.parse(localStorage.getItem('se_tickers')||'[]'); }catch(e){ tickerList=[]; }
+  if(!tickerList.length) tickerList = ['SPY','QQQ'];
+  currentAnalyzeTicker = tickerList[0];
+  renderTickerList();
+}
+
+function saveTickerList(){
+  localStorage.setItem('se_tickers', JSON.stringify(tickerList));
+}
+
+function renderTickerList(){
+  var el = document.getElementById('ticker-list');
+  if(!el) return;
+  if(!tickerList.length){
+    el.innerHTML = '<span style="color:var(--muted);font-size:11px;padding:4px 0">No tickers yet — type one above and hit +</span>';
+    return;
+  }
+  el.innerHTML = tickerList.map(function(sym){
+    var active = sym === currentAnalyzeTicker;
+    return '<div onclick="selectListTicker(\''+sym+'\')" style="display:inline-flex;align-items:center;gap:4px;padding:6px 10px 6px 12px;border-radius:20px;border:1.5px solid '+(active?'var(--accent)':'var(--border2)')+';background:'+(active?'rgba(255,107,53,0.12)':'var(--s2)')+';cursor:pointer;transition:all .15s;white-space:nowrap">'
+      +'<span style="font-size:13px;font-weight:900;color:'+(active?'var(--accent)':'var(--text)')+'">'+sym+'</span>'
+      +'<button onclick="event.stopPropagation();removeTicker(\''+sym+'\')" style="background:none;border:none;color:'+(active?'var(--accent)':'var(--muted)')+';font-size:14px;padding:0;line-height:1;cursor:pointer;margin-left:2px">×</button>'
+      +'</div>';
+  }).join('');
+}
+
+function addTicker(){
+  var v = document.getElementById('sig-inp').value.trim().toUpperCase();
+  if(!v) return;
+  if(!tickerList.includes(v)){
+    tickerList.push(v);
+    saveTickerList();
+  }
+  currentAnalyzeTicker = v;
+  document.getElementById('sig-inp').value = '';
+  renderTickerList();
+}
+
+function removeTicker(sym){
+  tickerList = tickerList.filter(function(s){ return s !== sym; });
+  if(currentAnalyzeTicker === sym) currentAnalyzeTicker = tickerList[0] || '';
+  saveTickerList();
+  renderTickerList();
+}
+
+function selectListTicker(sym){
+  currentAnalyzeTicker = sym;
+  renderTickerList();
+}
+
+function runFromList(){
+  if(!currentAnalyzeTicker) return;
+  runAnalysis();
+}
+
+// kept for compatibility (price bar SPY/QQQ clickthrough)
+function selectTicker(sym){ currentAnalyzeTicker = sym; }
+function analyzeCustom(){ runFromList(); }
 
 function saveTradeSettings(){
-  var cap = parseFloat(document.getElementById('land-capital').value)||10000;
-  var risk = parseFloat(document.getElementById('land-risk').value)||5;
-  var dte = parseInt(document.getElementById('land-dte').value)||7;
+  var cap = parseFloat((document.getElementById('land-capital')||{}).value)||10000;
+  var risk = parseFloat((document.getElementById('land-risk')||{}).value)||5;
+  var dte = parseInt((document.getElementById('land-dte')||{}).value)||7;
   localStorage.setItem('se_capital', cap);
   localStorage.setItem('se_risk', risk);
   localStorage.setItem('se_dte', dte);
 }
 
 function getTradeSettings(){
+  var capEl = document.getElementById('land-capital');
+  var riskEl = document.getElementById('land-risk');
+  var dteEl = document.getElementById('land-dte');
   return {
-    capital: parseFloat(document.getElementById('land-capital').value)||10000,
-    risk: parseFloat(document.getElementById('land-risk').value)||5,
-    dte: parseInt(document.getElementById('land-dte').value)||7
+    capital: parseFloat((capEl&&capEl.value)||localStorage.getItem('se_capital')||10000),
+    risk:    parseFloat((riskEl&&riskEl.value)||localStorage.getItem('se_risk')||5),
+    dte:     parseInt((dteEl&&dteEl.value)||localStorage.getItem('se_dte')||7)
   };
-}
-function selectTicker(sym){
-  currentAnalyzeTicker = sym;
-  ['SPY','QQQ'].forEach(function(s){
-    var p = document.getElementById('pill-'+s);
-    if(p) p.className = 'ticker-pill'+(s===sym?' on':'');
-  });
-  document.getElementById('sig-inp').value = '';
-}
-
-function analyzeCustom(){
-  var v = document.getElementById('sig-inp').value.trim().toUpperCase();
-  var sym = v || currentAnalyzeTicker;
-  if(!sym) return;
-  currentAnalyzeTicker = sym;
-  ['SPY','QQQ'].forEach(function(s){
-    var p = document.getElementById('pill-'+s);
-    if(p) p.className = 'ticker-pill'+(s===sym?' on':'');
-  });
-  if(v) document.getElementById('sig-inp').value = '';
-  runAnalysis();
 }
 
 function goHome(){
@@ -812,6 +865,12 @@ function runAnalysis(){
     sigOut.innerHTML = '<div class="err-box">⚠️ Add Twelve Data key via ⚙️ Keys to load real data.</div>';
     return;
   }
+
+  var ts = getTradeSettings();
+  var capital = ts.capital;
+  var riskPct = ts.risk;
+  var riskAmt = capital * riskPct / 100;
+  var dte = ts.dte;
 
   Promise.all([
     cachedFetch('/quote?symbol='+sym, 60000),
@@ -844,12 +903,6 @@ function runAnalysis(){
 
     // Single AI call: signal + strategies together
     sigOut.innerHTML = '<div class="ai-loading"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span style="margin-left:6px;color:var(--muted)">AI analysis running…</span></div>';
-
-    var ts = getTradeSettings();
-    var capital = ts.capital;
-    var riskPct = ts.risk;
-    var riskAmt = capital * riskPct / 100;
-    var dte = ts.dte;
 
     var prompt = 'You are a professional options trader. Analyze this setup and return ONLY valid JSON with no text before or after.\n\n'
       + 'Ticker: '+sym+'\n'
@@ -976,8 +1029,7 @@ function renderRuleFallbackStrategy(sym, price, vix, d){
   renderStrategyCards({regime: d.regime, macro_note: d.macro_note||'Rule-based analysis (add Claude key for AI analysis)', top_pick:0, strategies:strategies}, sym, price, 500);
 }
 
-// Keep loadSignal as alias for compatibility
-function loadSignal(sym){ selectTicker(sym); runAnalysis(); }
+function loadSignal(sym){ currentAnalyzeTicker = sym; showTab(0); runAnalysis(); }
 
 function statBox(lbl, val, sub, color){
   return '<div class="stat-box"><div class="stat-lbl">'+lbl+'</div>'
@@ -1382,6 +1434,20 @@ function bsP(S,K,T,v){ if(T<=0)return Math.max(0,K-S); var d1=(Math.log(S/K)+(0.
 function N(x){ return 0.5*(1+erf(x/Math.SQRT2)); }
 function erf(x){ var t=1/(1+0.3275911*Math.abs(x)),p=t*(0.254829592+t*(-0.284496736+t*(1.421413741+t*(-1.453152027+t*1.061405429)))); var r=1-p*Math.exp(-x*x); return x<0?-r:r; }
 
+// ── START ──
+appInit();
+
+// Set sticky offset to actual header height
+(function(){
+  var hdr = document.getElementById('hdr');
+  if(hdr){
+    var setH = function(){ document.documentElement.style.setProperty('--hdr-h', hdr.offsetHeight+'px'); };
+    setH();
+    new ResizeObserver(setH).observe(hdr);
+  }
+})();
+
+
 // ═══════════════════════════════════════════════════════
 //  MATH: Technicals
 // ═══════════════════════════════════════════════════════
@@ -1425,9 +1491,6 @@ function calcRVArr(closes, n){
   for(var i=n;i<closes.length;i++) out[i]=calcRV(closes.slice(i-n,i+1));
   return out;
 }
-
-// ── DEFAULT STATE: ensure SPY is fully initialized on first load ──
-selectTicker('SPY');
 
 // ═══════════════════════════════════════════════════════
 //  AI: Anthropic call
