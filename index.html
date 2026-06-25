@@ -53,7 +53,7 @@ body{padding-top:env(safe-area-inset-top)}
 
 /* ── HEADER ── */
 #hdr{position:sticky;top:0;z-index:200;background:var(--s1);backdrop-filter:blur(12px);padding-top:env(safe-area-inset-top);box-shadow:0 1px 0 var(--border)}
-.hdr-top{display:flex;align-items:center;gap:10px;padding:8px 12px 6px}
+.hdr-top{display:flex;align-items:center;gap:10px;padding:8px 12px 10px}
 .logo-mark{width:42px;height:42px;flex-shrink:0;position:relative}
 .logo-mark svg{width:42px;height:42px}
 .brand-text{flex:1}
@@ -66,7 +66,7 @@ body{padding-top:env(safe-area-inset-top)}
 
 /* ── PRICE BAR ── */
 
-.data-strip{display:flex;align-items:center;border-top:1px solid var(--border);border-bottom:1px solid var(--border);overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.data-strip{display:flex;align-items:center;border-top:1px solid var(--border);border-bottom:1px solid var(--border);overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-top:2px;padding-bottom:2px}
 .data-strip::-webkit-scrollbar{display:none}
 .ds-item{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:7px 12px;border-right:1px solid var(--border);cursor:pointer;white-space:nowrap;flex-shrink:0;transition:background .15s;min-width:70px}
 .ds-item:last-child{border-right:none}
@@ -86,7 +86,7 @@ body{padding-top:env(safe-area-inset-top)}
 .tab:hover:not(.on){color:var(--text)}
 
 /* ── PANES ── */
-.pane{display:none;padding:12px 14px 20px}
+.pane{display:none;padding:16px 14px 20px}
 .pane.on{display:block}
 
 /* ── SECTION LABEL ── */
@@ -345,9 +345,9 @@ body{padding-top:env(safe-area-inset-top)}
   <!-- LANDING VIEW -->
   <div id="landing-view">
     <!-- Ticker row -->
-    <div class="ticker-row">
-      <button class="ticker-pill on" id="pill-SPY" onclick="selectTicker('SPY');runAnalysis()">SPY</button>
-      <button class="ticker-pill" id="pill-QQQ" onclick="selectTicker('QQQ');runAnalysis()">QQQ</button>
+    <div class="ticker-row" style="margin-top:6px">
+      <button class="ticker-pill on" id="pill-SPY" onclick="selectTicker('SPY')">SPY</button>
+      <button class="ticker-pill" id="pill-QQQ" onclick="selectTicker('QQQ')">QQQ</button>
       <div class="ticker-search">
         <input class="ticker-inp" id="sig-inp" placeholder="AAPL, NVDA..." maxlength="6"
           oninput="this.value=this.value.toUpperCase()"
@@ -779,12 +779,14 @@ function selectTicker(sym){
 
 function analyzeCustom(){
   var v = document.getElementById('sig-inp').value.trim().toUpperCase();
-  if(!v) return;
-  currentAnalyzeTicker = v;
+  var sym = v || currentAnalyzeTicker;
+  if(!sym) return;
+  currentAnalyzeTicker = sym;
   ['SPY','QQQ'].forEach(function(s){
     var p = document.getElementById('pill-'+s);
-    if(p) p.className = 'ticker-pill';
+    if(p) p.className = 'ticker-pill'+(s===sym?' on':'');
   });
+  if(v) document.getElementById('sig-inp').value = '';
   runAnalysis();
 }
 
@@ -1423,6 +1425,9 @@ function calcRVArr(closes, n){
   for(var i=n;i<closes.length;i++) out[i]=calcRV(closes.slice(i-n,i+1));
   return out;
 }
+
+// ── DEFAULT STATE: ensure SPY is fully initialized on first load ──
+selectTicker('SPY');
 
 // ═══════════════════════════════════════════════════════
 //  AI: Anthropic call
