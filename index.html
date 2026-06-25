@@ -56,7 +56,7 @@ body{padding-top:env(safe-area-inset-top)}
 /* ── HEADER ── */
 #hdr{position:sticky;top:0;z-index:200;background:var(--s1);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);padding-top:env(safe-area-inset-top);box-shadow:0 1px 0 var(--border)}
 #sub-hdr{background:var(--s1);border-bottom:2px solid var(--border)}
-.hdr-top{display:flex;align-items:center;gap:12px;padding:10px 14px 12px}
+.hdr-top{display:flex;align-items:center;gap:12px;padding:10px 14px 12px;max-width:480px;margin:0 auto;width:100%}
 .logo-mark{width:44px;height:44px;flex-shrink:0;position:relative;border-radius:10px;box-shadow:0 0 18px rgba(255,107,53,0.22)}
 .logo-mark svg{width:44px;height:44px;display:block}
 .brand-text{flex:1}
@@ -71,7 +71,7 @@ body{padding-top:env(safe-area-inset-top)}
 /* ── PRICE BAR ── */
 .data-strip{display:flex;align-items:stretch;border-top:1px solid var(--border);border-bottom:1px solid var(--border);overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;background:var(--bg)}
 .data-strip::-webkit-scrollbar{display:none}
-.ds-item{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:9px 14px;border-right:1px solid var(--border);cursor:pointer;white-space:nowrap;flex-shrink:0;transition:background .15s;min-width:76px}
+.ds-item{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:9px 14px;border-right:1px solid var(--border);cursor:pointer;white-space:nowrap;flex:1;transition:background .15s}
 .ds-item:last-child{border-right:none}
 .ds-item:hover{background:var(--s2)}
 .ds-sym{font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;margin-bottom:4px;color:var(--muted)}
@@ -332,7 +332,7 @@ body{padding-top:env(safe-area-inset-top)}
 <div id="sub-hdr" style="background:var(--s1);border-bottom:1px solid var(--border)">
 
   <!-- PRICE BAR -->
-  <div class="data-strip">
+  <div class="data-strip" style="justify-content:center">
     <div class="ds-item spy" onclick="loadSignal('SPY')">
       <div class="ds-sym">SPY</div>
       <div class="ds-price" id="spy-price">—</div>
@@ -347,16 +347,6 @@ body{padding-top:env(safe-area-inset-top)}
       <div class="ds-sym">VIX</div>
       <div class="ds-price" id="m-vix">--</div>
       <div class="ds-chg" id="m-vix-c"></div>
-    </div>
-    <div class="ds-item macro">
-      <div class="ds-sym">DXY</div>
-      <div class="ds-price" id="m-dxy">--</div>
-      <div class="ds-chg" id="m-dxy-c"></div>
-    </div>
-    <div class="ds-item macro">
-      <div class="ds-sym">Bonds</div>
-      <div class="ds-price" id="m-tnx">--</div>
-      <div class="ds-chg" id="m-tnx-c"></div>
     </div>
     <div class="ds-item macro">
       <div class="ds-sym">Gold</div>
@@ -387,30 +377,31 @@ body{padding-top:env(safe-area-inset-top)}
     <!-- Ticker pills -->
     <div id="ticker-list" style="display:flex;flex-wrap:wrap;gap:6px;min-height:0;margin-bottom:12px"></div>
     <!-- Trade settings inline -->
-    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:10px">
-      <div class="field" style="margin-bottom:0;min-width:0;overflow:hidden">
-        <div class="field-lbl" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Capital $</div>
-        <input class="field-inp" id="land-capital" type="number" value="10000" step="500"
-          onchange="saveTradeSettings()" style="font-size:14px;padding:9px 10px;width:100%;min-width:0"/>
+    <div style="display:flex;gap:8px;align-items:flex-end">
+      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;flex:1">
+        <div class="field" style="margin-bottom:0;min-width:0">
+          <div class="field-lbl" style="font-size:8px;white-space:nowrap">Capital $</div>
+          <input class="field-inp" id="land-capital" type="number" value="10000" step="500"
+            onchange="saveTradeSettings()" style="font-size:13px;padding:7px 8px;width:100%;min-width:0"/>
+        </div>
+        <div class="field" style="margin-bottom:0;min-width:0">
+          <div class="field-lbl" style="font-size:8px;white-space:nowrap">Risk %</div>
+          <input class="field-inp" id="land-risk" type="number" value="5" step="1" min="1" max="50"
+            onchange="saveTradeSettings()" style="font-size:13px;padding:7px 8px;width:100%;min-width:0"/>
+        </div>
+        <div class="field" style="margin-bottom:0;min-width:0">
+          <div class="field-lbl" style="font-size:8px;white-space:nowrap">DTE</div>
+          <select class="field-inp" id="land-dte" onchange="saveTradeSettings()"
+            style="color:var(--text);background:var(--s2);font-size:13px;padding:7px 8px;width:100%;min-width:0">
+            <option value="7">7d</option>
+            <option value="15">15d</option>
+            <option value="21">21d</option>
+            <option value="30">30d</option>
+          </select>
+        </div>
       </div>
-      <div class="field" style="margin-bottom:0;min-width:0;overflow:hidden">
-        <div class="field-lbl" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Risk %</div>
-        <input class="field-inp" id="land-risk" type="number" value="5" step="1" min="1" max="50"
-          onchange="saveTradeSettings()" style="font-size:14px;padding:9px 10px;width:100%;min-width:0"/>
-      </div>
-      <div class="field" style="margin-bottom:0;min-width:0;overflow:hidden">
-        <div class="field-lbl" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">DTE</div>
-        <select class="field-inp" id="land-dte" onchange="saveTradeSettings()"
-          style="color:var(--text);background:var(--s2);font-size:14px;padding:9px 10px;width:100%;min-width:0">
-          <option value="7">7d</option>
-          <option value="15">15d</option>
-          <option value="21">21d</option>
-          <option value="30">30d</option>
-        </select>
-      </div>
+      <button onclick="runFromList()" style="background:var(--accent);color:#fff;border-radius:10px;padding:0 18px;font-size:13px;font-weight:900;border:none;letter-spacing:.04em;height:40px;flex-shrink:0;white-space:nowrap" ontouchstart="" onmousedown="this.style.opacity='.8'" onmouseup="this.style.opacity='1'">GO →</button>
     </div>
-    <!-- GO button -->
-    <button onclick="runFromList()" style="width:100%;background:var(--accent);color:#fff;border-radius:10px;padding:12px;font-size:14px;font-weight:900;border:none;letter-spacing:.04em;transition:opacity .15s" ontouchstart="" onmousedown="this.style.opacity='.8'" onmouseup="this.style.opacity='1'">GO</button>
   </div>
 </div>
 
