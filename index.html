@@ -57,11 +57,11 @@ body{padding-top:env(safe-area-inset-top);display:flex;flex-direction:column;ali
 /* ── HEADER ── */
 #hdr{position:sticky;top:0;z-index:200;background:var(--s1);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);padding-top:env(safe-area-inset-top);box-shadow:0 1px 0 var(--border);width:100%}
 #sub-hdr{background:var(--s1);border-bottom:2px solid var(--border);width:100%}
-.hdr-top{display:flex;align-items:center;padding:10px 14px 12px;max-width:480px;margin:0 auto;width:100%}
-.logo-mark{width:44px;height:44px;flex-shrink:0;position:relative;border-radius:10px;box-shadow:0 0 18px rgba(255,107,53,0.22)}
-.logo-mark svg{width:44px;height:44px;display:block}
+.hdr-top{display:flex;align-items:center;gap:12px;padding:8px 14px 8px;max-width:480px;margin:0 auto;width:100%}
+.logo-mark{width:34px;height:34px;flex-shrink:0;position:relative;border-radius:8px;box-shadow:0 0 14px rgba(255,107,53,0.22)}
+.logo-mark svg{width:34px;height:34px;display:block}
 .brand-text{flex:1}
-.brand-name{font-size:20px;font-weight:900;letter-spacing:-.6px;line-height:1}
+.brand-name{font-size:17px;font-weight:900;letter-spacing:-.6px;line-height:1}
 .brand-name .s1{color:var(--accent)}
 .brand-name .s2{color:var(--text)}
 .brand-sub{font-size:9px;font-weight:700;color:var(--muted);letter-spacing:.22em;text-transform:uppercase;margin-top:3px}
@@ -72,7 +72,7 @@ body{padding-top:env(safe-area-inset-top);display:flex;flex-direction:column;ali
 /* ── PRICE BAR ── */
 .data-strip{display:flex;align-items:stretch;border-top:1px solid var(--border);border-bottom:1px solid var(--border);overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;background:var(--bg)}
 .data-strip::-webkit-scrollbar{display:none}
-.ds-item{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:9px 14px;border-right:1px solid var(--border);cursor:pointer;white-space:nowrap;flex:1;transition:background .15s}
+.ds-item{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6px 10px;border-right:1px solid var(--border);cursor:pointer;white-space:nowrap;flex:1;transition:background .15s}
 .ds-item:last-child{border-right:none}
 .ds-item:hover{background:var(--s2)}
 .ds-sym{font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;margin-bottom:4px;color:var(--muted)}
@@ -84,12 +84,12 @@ body{padding-top:env(safe-area-inset-top);display:flex;flex-direction:column;ali
 
 /* ── TABS ── */
 #tab-bar{display:grid;grid-template-columns:repeat(5,1fr);border-top:1px solid var(--border);background:var(--s1)}
-.tab{padding:12px 2px;min-height:44px;font-size:11px;font-weight:800;color:var(--muted);letter-spacing:.02em;text-transform:uppercase;text-align:center;border-top:2px solid transparent;background:none;transition:color .15s,border-color .15s;position:relative;top:-1px}
+.tab{padding:9px 2px;min-height:38px;font-size:11px;font-weight:800;color:var(--muted);letter-spacing:.02em;text-transform:uppercase;text-align:center;border-top:2px solid transparent;background:none;transition:color .15s,border-color .15s;position:relative;top:-1px}
 .tab.on{color:var(--accent);border-top-color:var(--accent);background:rgba(255,107,53,0.05)}
 .tab:hover:not(.on){color:var(--text)}
 
 /* ── PANES ── */
-.pane{display:none;padding:14px 14px 20px}
+.pane{display:none;padding:10px 12px 20px}
 .pane.on{display:block}
 
 /* ── PAGE BORDER ── */
@@ -100,8 +100,8 @@ body{padding-top:env(safe-area-inset-top);display:flex;flex-direction:column;ali
 .sec-lbl::before{content:'';width:3px;height:14px;background:var(--accent);border-radius:2px;display:inline-block}
 
 /* ── CARDS ── */
-.card{background:var(--s1);border:1.5px solid var(--border2);border-radius:12px;padding:14px;margin-bottom:10px}
-.card-dark{background:var(--bg);border:1.5px solid var(--border2);border-radius:12px;padding:14px;margin-bottom:10px}
+.card{background:var(--s1);border:1.5px solid var(--border2);border-radius:10px;padding:10px;margin-bottom:8px}
+.card-dark{background:var(--bg);border:1.5px solid var(--border2);border-radius:10px;padding:10px;margin-bottom:8px}
 
 /* ── SIGNAL CARD ── */
 .signal-banner{border-radius:12px;padding:16px;margin-bottom:10px;text-align:center;border:1.5px solid}
@@ -278,46 +278,53 @@ body{padding-top:env(safe-area-inset-top);display:flex;flex-direction:column;ali
 <!-- ═══ STICKY LOGO BAR ═══ -->
 <div id="hdr">
   <div class="hdr-top">
-    <!-- LOGO + BRAND as home button -->
-    <button onclick="showTab(0);goHome()" style="display:flex;align-items:center;gap:12px;flex:1;background:none;border:none;padding:0;cursor:pointer;-webkit-tap-highlight-color:transparent;text-align:left">
-      <div class="logo-mark">
-        <svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <linearGradient id="bgGrad" x1="0" y1="0" x2="44" y2="44" gradientUnits="userSpaceOnUse">
-              <stop offset="0%" stop-color="#111827"/>
-              <stop offset="100%" stop-color="#0a0e1a"/>
-            </linearGradient>
-            <linearGradient id="arrowGrad" x1="8" y1="32" x2="36" y2="8" gradientUnits="userSpaceOnUse">
-              <stop offset="0%" stop-color="#ff6b35"/>
-              <stop offset="100%" stop-color="#00e676"/>
-            </linearGradient>
-            <linearGradient id="barGrad1" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
-              <stop offset="0%" stop-color="#00e676"/>
-              <stop offset="100%" stop-color="#00b854"/>
-            </linearGradient>
-            <linearGradient id="barGrad2" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
-              <stop offset="0%" stop-color="#ff6b35"/>
-              <stop offset="100%" stop-color="#d94e1f"/>
-            </linearGradient>
-            <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
-              <feGaussianBlur stdDeviation="1.5" result="blur"/>
-              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-            </filter>
-          </defs>
-          <rect width="44" height="44" rx="10" fill="url(#bgGrad)"/>
-          <rect width="44" height="44" rx="10" fill="none" stroke="rgba(255,107,53,0.25)" stroke-width="1"/>
-          <rect x="7" y="26" width="7" height="12" rx="2" fill="#00e676" opacity="0.9"/>
-          <rect x="18.5" y="18" width="7" height="20" rx="2" fill="url(#arrowGrad)" opacity="0.95" filter="url(#glow)"/>
-          <rect x="30" y="10" width="7" height="28" rx="2" fill="#ff6b35" opacity="0.9"/>
-          <polyline points="10.5,26 22,18 33.5,10" stroke="rgba(255,255,255,0.35)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-          <circle cx="33.5" cy="10" r="2" fill="#ff6b35" filter="url(#glow)"/>
-        </svg>
-      </div>
-      <div class="brand-text">
-        <div class="brand-name"><span class="s1">Strike</span><span class="s2">Edge</span></div>
-        <div class="brand-sub">Options Intelligence</div>
-      </div>
-    </button>
+    <!-- LOGO -->
+    <div class="logo-mark">
+      <svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="bgGrad" x1="0" y1="0" x2="44" y2="44" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#111827"/>
+            <stop offset="100%" stop-color="#0a0e1a"/>
+          </linearGradient>
+          <linearGradient id="arrowGrad" x1="8" y1="32" x2="36" y2="8" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#ff6b35"/>
+            <stop offset="100%" stop-color="#00e676"/>
+          </linearGradient>
+          <linearGradient id="barGrad1" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
+            <stop offset="0%" stop-color="#00e676"/>
+            <stop offset="100%" stop-color="#00b854"/>
+          </linearGradient>
+          <linearGradient id="barGrad2" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
+            <stop offset="0%" stop-color="#ff6b35"/>
+            <stop offset="100%" stop-color="#d94e1f"/>
+          </linearGradient>
+          <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+            <feGaussianBlur stdDeviation="1.5" result="blur"/>
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+        <!-- Rounded square bg with subtle border -->
+        <rect width="44" height="44" rx="10" fill="url(#bgGrad)"/>
+        <rect width="44" height="44" rx="10" fill="none" stroke="rgba(255,107,53,0.25)" stroke-width="1"/>
+
+        <!-- Bar chart: 3 bars ascending left to right -->
+        <!-- Bar 1 (short, green) -->
+        <rect x="7" y="26" width="7" height="12" rx="2" fill="#00e676" opacity="0.9"/>
+        <!-- Bar 2 (medium, gradient) -->
+        <rect x="18.5" y="18" width="7" height="20" rx="2" fill="url(#arrowGrad)" opacity="0.95" filter="url(#glow)"/>
+        <!-- Bar 3 (tall, orange) -->
+        <rect x="30" y="10" width="7" height="28" rx="2" fill="#ff6b35" opacity="0.9"/>
+
+        <!-- Upward trend line connecting tops -->
+        <polyline points="10.5,26 22,18 33.5,10" stroke="rgba(255,255,255,0.35)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        <!-- Dot at tip -->
+        <circle cx="33.5" cy="10" r="2" fill="#ff6b35" filter="url(#glow)"/>
+      </svg>
+    </div>
+    <div class="brand-text">
+      <div class="brand-name"><span class="s1">Strike</span><span class="s2">Edge</span></div>
+      <div class="brand-sub">Options Intelligence</div>
+    </div>
     <button class="hdr-keys" id="keys-btn" onclick="openSettings()">⚙ Keys</button>
   </div>
 </div>
@@ -362,17 +369,17 @@ body{padding-top:env(safe-area-inset-top);display:flex;flex-direction:column;ali
   </div>
 
   <!-- TICKER INPUT PANEL — only shown on Analyze tab -->
-  <div id="ticker-input-panel" style="padding:12px 14px 14px;border-top:1px solid var(--border);background:var(--s1)">
+  <div id="ticker-input-panel" style="padding:8px 14px 10px;border-top:1px solid var(--border);background:var(--s1)">
     <!-- Row 1: ticker search + add -->
-    <div style="display:flex;gap:8px;margin-bottom:10px">
+    <div style="display:flex;gap:6px;margin-bottom:7px">
       <input class="ticker-inp" id="sig-inp" placeholder="AAPL, NVDA, SPY…" maxlength="6"
-        style="flex:1;border-radius:10px;border:1.5px solid var(--border2);background:var(--s2);padding:10px 14px;color:var(--text);font-size:15px;font-weight:800;text-transform:uppercase"
+        style="flex:1;border-radius:8px;border:1.5px solid var(--border2);background:var(--s2);padding:8px 12px;color:var(--text);font-size:14px;font-weight:800;text-transform:uppercase"
         oninput="this.value=this.value.toUpperCase()"
         onkeydown="if(event.key==='Enter')addTicker()">
-      <button onclick="addTicker()" style="background:var(--s3);border:1.5px solid var(--border2);color:var(--dim);border-radius:10px;padding:10px 16px;font-size:20px;font-weight:900;line-height:1;min-width:48px;flex-shrink:0">+</button>
+      <button onclick="addTicker()" style="background:var(--s3);border:1.5px solid var(--border2);color:var(--dim);border-radius:8px;padding:8px 14px;font-size:18px;font-weight:900;line-height:1;min-width:44px;flex-shrink:0">+</button>
     </div>
     <!-- Ticker pills -->
-    <div id="ticker-list" style="display:flex;flex-wrap:wrap;gap:6px;min-height:0;margin-bottom:12px"></div>
+    <div id="ticker-list" style="display:flex;flex-wrap:wrap;gap:5px;min-height:0;margin-bottom:8px"></div>
     <!-- Trade settings inline -->
     <div style="display:flex;gap:8px;align-items:flex-end">
       <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:6px;flex:1">
@@ -406,61 +413,61 @@ body{padding-top:env(safe-area-inset-top);display:flex;flex-direction:column;ali
 <div class="pane on" id="pane0">
 
   <!-- LANDING VIEW -->
-  <div id="landing-view" style="padding-top:4px">
+  <div id="landing-view" style="padding-top:2px">
 
     <!-- Market Mood Card -->
-    <div style="background:var(--s1);border:1.5px solid var(--border2);border-radius:12px;padding:14px;margin-bottom:10px">
-      <div class="sec-lbl" style="margin-bottom:10px">Market Mood</div>
+    <div style="background:var(--s1);border:1.5px solid var(--border2);border-radius:10px;padding:10px;margin-bottom:8px">
+      <div class="sec-lbl" style="margin-bottom:8px">Market Mood</div>
       <div id="mood-content">
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
-          <div id="mood-icon" style="font-size:28px;line-height:1">—</div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+          <div id="mood-icon" style="font-size:22px;line-height:1">—</div>
           <div>
-            <div id="mood-label" style="font-size:17px;font-weight:900;color:var(--text)">Loading…</div>
-            <div id="mood-sub" style="font-size:11px;color:var(--muted);margin-top:2px;font-weight:600"></div>
+            <div id="mood-label" style="font-size:15px;font-weight:900;color:var(--text)">Loading…</div>
+            <div id="mood-sub" style="font-size:10px;color:var(--muted);margin-top:1px;font-weight:600"></div>
           </div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-          <div style="background:var(--s2);border:1px solid var(--border2);border-radius:9px;padding:10px">
-            <div style="font-size:8px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">VIX</div>
-            <div id="mood-vix" style="font-size:18px;font-weight:900;color:var(--text)">--</div>
-            <div id="mood-vix-txt" style="font-size:9px;color:var(--muted);margin-top:2px;font-weight:600"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+          <div style="background:var(--s2);border:1px solid var(--border2);border-radius:8px;padding:8px">
+            <div style="font-size:8px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:3px">VIX</div>
+            <div id="mood-vix" style="font-size:16px;font-weight:900;color:var(--text)">--</div>
+            <div id="mood-vix-txt" style="font-size:9px;color:var(--muted);margin-top:1px;font-weight:600"></div>
           </div>
-          <div style="background:var(--s2);border:1px solid var(--border2);border-radius:9px;padding:10px">
-            <div style="font-size:8px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">Trend</div>
-            <div id="mood-trend" style="font-size:18px;font-weight:900;color:var(--text)">--</div>
-            <div id="mood-trend-txt" style="font-size:9px;color:var(--muted);margin-top:2px;font-weight:600"></div>
+          <div style="background:var(--s2);border:1px solid var(--border2);border-radius:8px;padding:8px">
+            <div style="font-size:8px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:3px">Trend</div>
+            <div id="mood-trend" style="font-size:16px;font-weight:900;color:var(--text)">--</div>
+            <div id="mood-trend-txt" style="font-size:9px;color:var(--muted);margin-top:1px;font-weight:600"></div>
           </div>
         </div>
       </div>
     </div>
 
     <!-- Strategy Guide 2x2 -->
-    <div style="background:var(--s1);border:1.5px solid var(--border2);border-radius:12px;padding:14px;margin-bottom:10px">
-      <div class="sec-lbl" style="margin-bottom:10px">Strategy Guide</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px">
-        <div style="padding:10px;background:var(--gbg);border:1.5px solid var(--gbd);border-radius:9px">
-          <div style="font-size:12px;font-weight:900;color:var(--green);margin-bottom:3px">📈 Bull Call</div>
+    <div style="background:var(--s1);border:1.5px solid var(--border2);border-radius:10px;padding:10px;margin-bottom:8px">
+      <div class="sec-lbl" style="margin-bottom:8px">Strategy Guide</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+        <div style="padding:8px;background:var(--gbg);border:1.5px solid var(--gbd);border-radius:8px">
+          <div style="font-size:11px;font-weight:900;color:var(--green);margin-bottom:2px">📈 Bull Call</div>
           <div style="font-size:9px;color:var(--dim);font-weight:600">Low VIX · Bullish</div>
         </div>
-        <div style="padding:10px;background:var(--rbg);border:1.5px solid var(--rbd);border-radius:9px">
-          <div style="font-size:12px;font-weight:900;color:var(--red);margin-bottom:3px">📉 Bear Put</div>
+        <div style="padding:8px;background:var(--rbg);border:1.5px solid var(--rbd);border-radius:8px">
+          <div style="font-size:11px;font-weight:900;color:var(--red);margin-bottom:2px">📉 Bear Put</div>
           <div style="font-size:9px;color:var(--dim);font-weight:600">Low VIX · Bearish</div>
         </div>
-        <div style="padding:10px;background:var(--abg);border:1.5px solid var(--abd);border-radius:9px">
-          <div style="font-size:12px;font-weight:900;color:var(--amber);margin-bottom:3px">⚡ Straddle</div>
+        <div style="padding:8px;background:var(--abg);border:1.5px solid var(--abd);border-radius:8px">
+          <div style="font-size:11px;font-weight:900;color:var(--amber);margin-bottom:2px">⚡ Straddle</div>
           <div style="font-size:9px;color:var(--dim);font-weight:600">High VIX · Any dir</div>
         </div>
-        <div style="padding:10px;background:var(--bbg);border:1.5px solid var(--bbd);border-radius:9px">
-          <div style="font-size:12px;font-weight:900;color:var(--blue);margin-bottom:3px">🎯 Iron Condor</div>
+        <div style="padding:8px;background:var(--bbg);border:1.5px solid var(--bbd);border-radius:8px">
+          <div style="font-size:11px;font-weight:900;color:var(--blue);margin-bottom:2px">🎯 Iron Condor</div>
           <div style="font-size:9px;color:var(--dim);font-weight:600">High VIX · Neutral</div>
         </div>
       </div>
     </div>
 
     <!-- Tip -->
-    <div style="padding:12px 14px;background:var(--s1);border:1.5px solid var(--border2);border-left:3px solid var(--accent);border-radius:0 10px 10px 0;margin-bottom:10px">
-      <div style="font-size:12px;color:var(--dim);line-height:1.8">
-        <strong style="color:var(--text);font-size:13px">StrikeEdge</strong> gives you an AI-powered edge on every options trade.
+    <div style="padding:10px 12px;background:var(--s1);border:1.5px solid var(--border2);border-left:3px solid var(--accent);border-radius:0 8px 8px 0;margin-bottom:8px">
+      <div style="font-size:11px;color:var(--dim);line-height:1.6">
+        <strong style="color:var(--text);font-size:12px">StrikeEdge</strong> gives you an AI-powered edge on every options trade.
         Type a ticker and hit <strong style="color:var(--accent)">+</strong> to add it, set your capital, risk %, and DTE — then hit <strong style="color:var(--accent)">GO →</strong>.
       </div>
     </div>
