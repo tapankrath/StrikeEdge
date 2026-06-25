@@ -57,7 +57,7 @@ body{padding-top:env(safe-area-inset-top);display:flex;flex-direction:column;ali
 /* ── HEADER ── */
 #hdr{position:sticky;top:0;z-index:200;background:var(--s1);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);padding-top:env(safe-area-inset-top);box-shadow:0 1px 0 var(--border);width:100%}
 #sub-hdr{background:var(--s1);border-bottom:2px solid var(--border);width:100%}
-.hdr-top{display:flex;align-items:center;gap:12px;padding:10px 14px 16px;max-width:480px;margin:0 auto;width:100%}
+.hdr-top{display:flex;align-items:center;padding:10px 14px 12px;max-width:480px;margin:0 auto;width:100%}
 .logo-mark{width:44px;height:44px;flex-shrink:0;position:relative;border-radius:10px;box-shadow:0 0 18px rgba(255,107,53,0.22)}
 .logo-mark svg{width:44px;height:44px;display:block}
 .brand-text{flex:1}
@@ -89,7 +89,7 @@ body{padding-top:env(safe-area-inset-top);display:flex;flex-direction:column;ali
 .tab:hover:not(.on){color:var(--text)}
 
 /* ── PANES ── */
-.pane{display:none;padding:22px 14px 20px}
+.pane{display:none;padding:14px 14px 20px}
 .pane.on{display:block}
 
 /* ── PAGE BORDER ── */
@@ -278,53 +278,46 @@ body{padding-top:env(safe-area-inset-top);display:flex;flex-direction:column;ali
 <!-- ═══ STICKY LOGO BAR ═══ -->
 <div id="hdr">
   <div class="hdr-top">
-    <!-- LOGO -->
-    <div class="logo-mark">
-      <svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <linearGradient id="bgGrad" x1="0" y1="0" x2="44" y2="44" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stop-color="#111827"/>
-            <stop offset="100%" stop-color="#0a0e1a"/>
-          </linearGradient>
-          <linearGradient id="arrowGrad" x1="8" y1="32" x2="36" y2="8" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stop-color="#ff6b35"/>
-            <stop offset="100%" stop-color="#00e676"/>
-          </linearGradient>
-          <linearGradient id="barGrad1" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
-            <stop offset="0%" stop-color="#00e676"/>
-            <stop offset="100%" stop-color="#00b854"/>
-          </linearGradient>
-          <linearGradient id="barGrad2" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
-            <stop offset="0%" stop-color="#ff6b35"/>
-            <stop offset="100%" stop-color="#d94e1f"/>
-          </linearGradient>
-          <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
-            <feGaussianBlur stdDeviation="1.5" result="blur"/>
-            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-          </filter>
-        </defs>
-        <!-- Rounded square bg with subtle border -->
-        <rect width="44" height="44" rx="10" fill="url(#bgGrad)"/>
-        <rect width="44" height="44" rx="10" fill="none" stroke="rgba(255,107,53,0.25)" stroke-width="1"/>
-
-        <!-- Bar chart: 3 bars ascending left to right -->
-        <!-- Bar 1 (short, green) -->
-        <rect x="7" y="26" width="7" height="12" rx="2" fill="#00e676" opacity="0.9"/>
-        <!-- Bar 2 (medium, gradient) -->
-        <rect x="18.5" y="18" width="7" height="20" rx="2" fill="url(#arrowGrad)" opacity="0.95" filter="url(#glow)"/>
-        <!-- Bar 3 (tall, orange) -->
-        <rect x="30" y="10" width="7" height="28" rx="2" fill="#ff6b35" opacity="0.9"/>
-
-        <!-- Upward trend line connecting tops -->
-        <polyline points="10.5,26 22,18 33.5,10" stroke="rgba(255,255,255,0.35)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-        <!-- Dot at tip -->
-        <circle cx="33.5" cy="10" r="2" fill="#ff6b35" filter="url(#glow)"/>
-      </svg>
-    </div>
-    <div class="brand-text">
-      <div class="brand-name"><span class="s1">Strike</span><span class="s2">Edge</span></div>
-      <div class="brand-sub">Options Intelligence</div>
-    </div>
+    <!-- LOGO + BRAND as home button -->
+    <button onclick="showTab(0);goHome()" style="display:flex;align-items:center;gap:12px;flex:1;background:none;border:none;padding:0;cursor:pointer;-webkit-tap-highlight-color:transparent;text-align:left">
+      <div class="logo-mark">
+        <svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="bgGrad" x1="0" y1="0" x2="44" y2="44" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#111827"/>
+              <stop offset="100%" stop-color="#0a0e1a"/>
+            </linearGradient>
+            <linearGradient id="arrowGrad" x1="8" y1="32" x2="36" y2="8" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#ff6b35"/>
+              <stop offset="100%" stop-color="#00e676"/>
+            </linearGradient>
+            <linearGradient id="barGrad1" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
+              <stop offset="0%" stop-color="#00e676"/>
+              <stop offset="100%" stop-color="#00b854"/>
+            </linearGradient>
+            <linearGradient id="barGrad2" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
+              <stop offset="0%" stop-color="#ff6b35"/>
+              <stop offset="100%" stop-color="#d94e1f"/>
+            </linearGradient>
+            <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+              <feGaussianBlur stdDeviation="1.5" result="blur"/>
+              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
+          <rect width="44" height="44" rx="10" fill="url(#bgGrad)"/>
+          <rect width="44" height="44" rx="10" fill="none" stroke="rgba(255,107,53,0.25)" stroke-width="1"/>
+          <rect x="7" y="26" width="7" height="12" rx="2" fill="#00e676" opacity="0.9"/>
+          <rect x="18.5" y="18" width="7" height="20" rx="2" fill="url(#arrowGrad)" opacity="0.95" filter="url(#glow)"/>
+          <rect x="30" y="10" width="7" height="28" rx="2" fill="#ff6b35" opacity="0.9"/>
+          <polyline points="10.5,26 22,18 33.5,10" stroke="rgba(255,255,255,0.35)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <circle cx="33.5" cy="10" r="2" fill="#ff6b35" filter="url(#glow)"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <div class="brand-name"><span class="s1">Strike</span><span class="s2">Edge</span></div>
+        <div class="brand-sub">Options Intelligence</div>
+      </div>
+    </button>
     <button class="hdr-keys" id="keys-btn" onclick="openSettings()">⚙ Keys</button>
   </div>
 </div>
