@@ -337,6 +337,19 @@ body{padding-top:env(safe-area-inset-top)}
     <button class="tab" onclick="showTab(3)">Portfolio</button>
     <button class="tab" onclick="showTab(4)">P&amp;L</button>
   </div>
+
+  <!-- TICKER INPUT PANEL — only shown on Analyze tab -->
+  <div id="ticker-input-panel" style="padding:10px 14px 10px;border-top:1px solid var(--border);background:var(--s1)">
+    <div style="display:flex;gap:6px;margin-bottom:8px">
+      <input class="ticker-inp" id="sig-inp" placeholder="AAPL, NVDA, SPY…" maxlength="6"
+        style="flex:1;border-radius:10px;border:1.5px solid var(--border);background:var(--s2);padding:9px 14px;color:var(--text);font-size:15px;font-weight:800;text-transform:uppercase"
+        oninput="this.value=this.value.toUpperCase()"
+        onkeydown="if(event.key==='Enter')runFromList()">
+      <button onclick="addTicker()" style="background:var(--s3);border:1.5px solid var(--border2);color:var(--dim);border-radius:10px;padding:9px 16px;font-size:20px;font-weight:900;line-height:1;min-width:46px">+</button>
+      <button onclick="runFromList()" style="background:var(--accent);color:#fff;border-radius:10px;padding:9px 18px;font-size:13px;font-weight:900;min-width:52px">Go</button>
+    </div>
+    <div id="ticker-list" style="display:flex;flex-wrap:wrap;gap:6px;min-height:0"></div>
+  </div>
 </div>
 
 <!-- ═══ PANE 0: ANALYZE ═══ -->
@@ -345,27 +358,8 @@ body{padding-top:env(safe-area-inset-top)}
   <!-- LANDING VIEW -->
   <div id="landing-view">
 
-    <!-- STICKY: input + pills + Go -->
-    <div style="position:sticky;top:var(--hdr-h,130px);z-index:100;background:var(--bg);padding:10px 0 8px;margin:-16px -14px 12px;padding-left:14px;padding-right:14px;border-bottom:1px solid var(--border)">
-
-      <!-- Add ticker input -->
-      <div style="display:flex;gap:6px;margin-bottom:10px">
-        <input class="ticker-inp" id="sig-inp" placeholder="AAPL, NVDA, SPY…" maxlength="6"
-          style="flex:1;border-radius:10px;border:1.5px solid var(--border);background:var(--s2);padding:10px 14px;color:var(--text);font-size:15px;font-weight:800;text-transform:uppercase"
-          oninput="this.value=this.value.toUpperCase()"
-          onkeydown="if(event.key==='Enter')addTicker()">
-        <button onclick="addTicker()" style="background:var(--s3);border:1.5px solid var(--border2);color:var(--dim);border-radius:10px;padding:10px 18px;font-size:20px;font-weight:900;line-height:1;min-width:48px">+</button>
-      </div>
-
-      <!-- Ticker pills (horizontal wrap) -->
-      <div id="ticker-list" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;min-height:20px"></div>
-
-      <!-- Go button -->
-      <button class="btn-primary" id="go-btn" onclick="runFromList()" style="margin-bottom:0">Go</button>
-    </div>
-
     <!-- Trade settings — compact 3-col row -->
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px;margin-top:4px">
       <div class="field" style="margin-bottom:0">
         <div class="field-lbl">Capital $</div>
         <input class="field-inp" id="land-capital" type="number" value="10000" step="500"
@@ -649,6 +643,8 @@ function updateKeyStatus(k, val){
 function showTab(n){
   document.querySelectorAll('.pane').forEach(function(p,i){ p.className='pane'+(i===n?' on':''); });
   document.querySelectorAll('.tab').forEach(function(t,i){ t.className='tab'+(i===n?' on':''); });
+  var panel = document.getElementById('ticker-input-panel');
+  if(panel) panel.style.display = n===0 ? 'block' : 'none';
   if(n===2 && chTicker) chSelect(chTicker);
   if(n===3) renderPortfolio();
 }
