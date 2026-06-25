@@ -815,7 +815,10 @@ function selectListTicker(sym){
 }
 
 function runFromList(){
+  var typed = document.getElementById('sig-inp').value.trim().toUpperCase();
+  if(typed) currentAnalyzeTicker = typed;
   if(!currentAnalyzeTicker) return;
+  document.getElementById('sig-inp').value = '';
   runAnalysis();
 }
 
