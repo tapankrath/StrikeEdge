@@ -40,7 +40,8 @@
   --purple:#d500f9;--pbg:rgba(213,0,249,.08);
   --accent:#ff6b35;
 }
-html,body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,sans-serif;font-size:14px;-webkit-font-smoothing:antialiased;min-height:100vh;overflow-x:hidden}
+html,body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,sans-serif;font-size:14px;-webkit-font-smoothing:antialiased;min-height:100vh}
+html{overflow-x:clip}
 button,input,select{font-family:inherit;-webkit-appearance:none;appearance:none;outline:none}
 button{cursor:pointer;border:none;touch-action:manipulation;-webkit-user-select:none;user-select:none}
 input{border:none}
@@ -52,37 +53,36 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
 body{padding-top:env(safe-area-inset-top)}
 
 /* ── HEADER ── */
-#hdr{position:sticky;top:0;z-index:200;background:var(--s1);backdrop-filter:blur(12px);padding-top:env(safe-area-inset-top);box-shadow:0 1px 0 var(--border)}
-.hdr-top{display:flex;align-items:center;gap:10px;padding:8px 12px 10px}
-.logo-mark{width:42px;height:42px;flex-shrink:0;position:relative}
-.logo-mark svg{width:42px;height:42px}
+#hdr{position:sticky;top:0;z-index:200;background:var(--s1);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);padding-top:env(safe-area-inset-top);box-shadow:0 2px 20px rgba(0,0,0,0.55),0 1px 0 var(--border)}
+.hdr-top{display:flex;align-items:center;gap:12px;padding:10px 14px 12px}
+.logo-mark{width:44px;height:44px;flex-shrink:0;position:relative;border-radius:10px;box-shadow:0 0 18px rgba(255,107,53,0.22)}
+.logo-mark svg{width:44px;height:44px;display:block}
 .brand-text{flex:1}
-.brand-name{font-size:19px;font-weight:900;letter-spacing:-.5px;line-height:1}
+.brand-name{font-size:20px;font-weight:900;letter-spacing:-.6px;line-height:1}
 .brand-name .s1{color:var(--accent)}
 .brand-name .s2{color:var(--text)}
-.brand-sub{font-size:9px;font-weight:700;color:var(--dim);letter-spacing:.18em;text-transform:uppercase;margin-top:2px}
-.hdr-keys{background:var(--s3);border:1px solid var(--border2);color:var(--text);border-radius:8px;padding:6px 12px;font-size:11px;font-weight:800;letter-spacing:.04em}
-.hdr-keys.set{color:var(--green);border-color:var(--gbd)}
+.brand-sub{font-size:9px;font-weight:700;color:var(--muted);letter-spacing:.22em;text-transform:uppercase;margin-top:3px}
+.hdr-keys{background:transparent;border:1.5px solid var(--border2);color:var(--dim);border-radius:8px;padding:7px 13px;font-size:11px;font-weight:800;letter-spacing:.04em;transition:all .15s;white-space:nowrap}
+.hdr-keys:hover{border-color:var(--accent);color:var(--accent)}
+.hdr-keys.set{color:var(--green);border-color:var(--gbd);background:var(--gbg)}
 
 /* ── PRICE BAR ── */
-
-.data-strip{display:flex;align-items:center;border-top:1px solid var(--border);border-bottom:1px solid var(--border);overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-top:2px;padding-bottom:2px}
+.data-strip{display:flex;align-items:stretch;border-top:1px solid var(--border);border-bottom:1px solid var(--border);overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;background:var(--bg)}
 .data-strip::-webkit-scrollbar{display:none}
-.ds-item{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:7px 12px;border-right:1px solid var(--border);cursor:pointer;white-space:nowrap;flex-shrink:0;transition:background .15s;min-width:70px}
+.ds-item{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:9px 14px;border-right:1px solid var(--border);cursor:pointer;white-space:nowrap;flex-shrink:0;transition:background .15s;min-width:76px}
 .ds-item:last-child{border-right:none}
 .ds-item:hover{background:var(--s2)}
-.ds-sym{font-size:8px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;margin-bottom:2px}
-.ds-item.spy .ds-sym{color:var(--blue)}
+.ds-sym{font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;margin-bottom:4px;color:var(--muted)}
+.ds-item.spy .ds-sym{color:#60a5fa}
 .ds-item.qqq .ds-sym{color:var(--amber)}
-.ds-item.macro .ds-sym{color:var(--muted)}
-.ds-price{font-size:14px;font-weight:900;color:var(--text);letter-spacing:-.3px;line-height:1}
-.ds-chg{font-size:9px;font-weight:700;margin-top:2px}
+.ds-price{font-size:13px;font-weight:900;color:var(--text);letter-spacing:-.3px;line-height:1}
+.ds-chg{font-size:9px;font-weight:700;margin-top:3px;line-height:1}
 .up{color:var(--green)}.dn{color:var(--red)}.flat{color:var(--dim)}
 
 /* ── TABS ── */
-#tab-bar{display:grid;grid-template-columns:repeat(5,1fr);border-top:2px solid var(--border);background:var(--s1)}
-.tab{padding:12px 2px;min-height:44px;font-size:9px;font-weight:800;color:var(--dim);letter-spacing:.04em;text-transform:uppercase;text-align:center;border-top:2px solid transparent;border-bottom:none;background:none;transition:color .15s,border-color .15s;margin-top:-2px}
-.tab.on{color:var(--accent);border-top-color:var(--accent);background:rgba(255,107,53,0.06)}
+#tab-bar{display:grid;grid-template-columns:repeat(5,1fr);border-top:1px solid var(--border);background:var(--s1)}
+.tab{padding:11px 2px;min-height:42px;font-size:9px;font-weight:800;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;text-align:center;border-top:2px solid transparent;border-bottom:none;background:none;transition:color .15s,border-color .15s;margin-top:0;position:relative;top:-1px}
+.tab.on{color:var(--accent);border-top-color:var(--accent);background:rgba(255,107,53,0.05)}
 .tab:hover:not(.on){color:var(--text)}
 
 /* ── PANES ── */
@@ -175,9 +175,9 @@ body{padding-top:env(safe-area-inset-top)}
 .scenario-btn.on .scenario-lbl{color:var(--text)}
 
 /* ── INPUTS ── */
-.field{display:flex;flex-direction:column;gap:3px;margin-bottom:10px}
-.field-lbl{font-size:9px;font-weight:800;color:var(--text);text-transform:uppercase;letter-spacing:.1em}
-.field-inp{background:var(--s2);border:1.5px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-size:16px;font-weight:700;width:100%;min-height:44px;-webkit-appearance:none}
+.field{display:flex;flex-direction:column;gap:3px;margin-bottom:10px;min-width:0}
+.field-lbl{font-size:9px;font-weight:800;color:var(--text);text-transform:uppercase;letter-spacing:.08em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.field-inp{background:var(--s2);border:1.5px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-size:16px;font-weight:700;width:100%;min-width:0;min-height:44px;-webkit-appearance:none}
 .field-inp:focus{border-color:var(--accent)}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 
@@ -275,33 +275,45 @@ body{padding-top:env(safe-area-inset-top)}
   <div class="hdr-top">
     <!-- LOGO -->
     <div class="logo-mark">
-      <svg viewBox="0 0 42 42" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
         <defs>
-          <linearGradient id="bgGrad" x1="0" y1="0" x2="42" y2="42" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stop-color="#0d1f14"/>
-            <stop offset="100%" stop-color="#0f1629"/>
+          <linearGradient id="bgGrad" x1="0" y1="0" x2="44" y2="44" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#111827"/>
+            <stop offset="100%" stop-color="#0a0e1a"/>
           </linearGradient>
-          <linearGradient id="strikeGrad" x1="6" y1="8" x2="30" y2="36" gradientUnits="userSpaceOnUse">
+          <linearGradient id="arrowGrad" x1="8" y1="32" x2="36" y2="8" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#ff6b35"/>
+            <stop offset="100%" stop-color="#00e676"/>
+          </linearGradient>
+          <linearGradient id="barGrad1" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
             <stop offset="0%" stop-color="#00e676"/>
-            <stop offset="100%" stop-color="#ff6b35"/>
+            <stop offset="100%" stop-color="#00b854"/>
           </linearGradient>
+          <linearGradient id="barGrad2" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
+            <stop offset="0%" stop-color="#ff6b35"/>
+            <stop offset="100%" stop-color="#d94e1f"/>
+          </linearGradient>
+          <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+            <feGaussianBlur stdDeviation="1.5" result="blur"/>
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
         </defs>
-        <!-- Square bg -->
-        <rect width="42" height="42" rx="8" fill="url(#bgGrad)"/>
-        <!-- Left candle (green) -->
-        <rect x="9" y="14" width="5" height="18" rx="1.5" fill="#00e676" stroke="#00e676" stroke-width="1" stroke-opacity="0.6"/>
-        <line x1="11.5" y1="10" x2="11.5" y2="14" stroke="#00e676" stroke-width="1.5" stroke-linecap="round"/>
-        <line x1="11.5" y1="32" x2="11.5" y2="35" stroke="#00e676" stroke-width="1.5" stroke-linecap="round"/>
-        <!-- Center candle (gradient, tallest) -->
-        <rect x="18.5" y="9" width="5" height="22" rx="1.5" fill="url(#strikeGrad)" stroke="#ff6b35" stroke-width="1" stroke-opacity="0.7"/>
-        <line x1="21" y1="5" x2="21" y2="9" stroke="#ff6b35" stroke-width="1.5" stroke-linecap="round"/>
-        <line x1="21" y1="31" x2="21" y2="36" stroke="#00e676" stroke-width="1.5" stroke-linecap="round"/>
-        <!-- Right candle (orange) -->
-        <rect x="28" y="18" width="5" height="13" rx="1.5" fill="#ff6b35" stroke="#ff6b35" stroke-width="1" stroke-opacity="0.6"/>
-        <line x1="30.5" y1="14" x2="30.5" y2="18" stroke="#ff6b35" stroke-width="1.5" stroke-linecap="round"/>
-        <line x1="30.5" y1="31" x2="30.5" y2="34" stroke="#ff6b35" stroke-width="1.5" stroke-linecap="round"/>
-        <!-- Diagonal strike line -->
-        <line x1="5" y1="28" x2="37" y2="13" stroke="rgba(255,255,255,0.18)" stroke-width="1" stroke-linecap="round"/>
+        <!-- Rounded square bg with subtle border -->
+        <rect width="44" height="44" rx="10" fill="url(#bgGrad)"/>
+        <rect width="44" height="44" rx="10" fill="none" stroke="rgba(255,107,53,0.25)" stroke-width="1"/>
+
+        <!-- Bar chart: 3 bars ascending left to right -->
+        <!-- Bar 1 (short, green) -->
+        <rect x="7" y="26" width="7" height="12" rx="2" fill="#00e676" opacity="0.9"/>
+        <!-- Bar 2 (medium, gradient) -->
+        <rect x="18.5" y="18" width="7" height="20" rx="2" fill="url(#arrowGrad)" opacity="0.95" filter="url(#glow)"/>
+        <!-- Bar 3 (tall, orange) -->
+        <rect x="30" y="10" width="7" height="28" rx="2" fill="#ff6b35" opacity="0.9"/>
+
+        <!-- Upward trend line connecting tops -->
+        <polyline points="10.5,26 22,18 33.5,10" stroke="rgba(255,255,255,0.35)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        <!-- Dot at tip -->
+        <circle cx="33.5" cy="10" r="2" fill="#ff6b35" filter="url(#glow)"/>
       </svg>
     </div>
     <div class="brand-text">
@@ -355,16 +367,42 @@ body{padding-top:env(safe-area-inset-top)}
   </div>
 
   <!-- TICKER INPUT PANEL — only shown on Analyze tab -->
-  <div id="ticker-input-panel" style="padding:10px 14px 12px;border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:var(--s1)">
-    <div style="display:flex;gap:6px;margin-bottom:8px">
+  <div id="ticker-input-panel" style="padding:12px 14px 14px;border-top:1px solid var(--border);background:var(--s1)">
+    <!-- Row 1: ticker search + add -->
+    <div style="display:flex;gap:8px;margin-bottom:10px">
       <input class="ticker-inp" id="sig-inp" placeholder="AAPL, NVDA, SPY…" maxlength="6"
-        style="flex:1;border-radius:10px;border:1.5px solid var(--border2);background:var(--s2);padding:9px 14px;color:var(--text);font-size:15px;font-weight:800;text-transform:uppercase"
+        style="flex:1;border-radius:10px;border:1.5px solid var(--border2);background:var(--s2);padding:10px 14px;color:var(--text);font-size:15px;font-weight:800;text-transform:uppercase"
         oninput="this.value=this.value.toUpperCase()"
-        onkeydown="if(event.key==='Enter')runFromList()">
-      <button onclick="addTicker()" style="background:var(--s3);border:1.5px solid var(--border2);color:var(--dim);border-radius:10px;padding:9px 16px;font-size:20px;font-weight:900;line-height:1;min-width:46px">+</button>
-      <button onclick="runFromList()" style="background:var(--accent);color:#fff;border-radius:10px;padding:9px 18px;font-size:13px;font-weight:900;min-width:52px;border:none">Go</button>
+        onkeydown="if(event.key==='Enter')addTicker()">
+      <button onclick="addTicker()" style="background:var(--s3);border:1.5px solid var(--border2);color:var(--dim);border-radius:10px;padding:10px 16px;font-size:20px;font-weight:900;line-height:1;min-width:48px;flex-shrink:0">+</button>
     </div>
-    <div id="ticker-list" style="display:flex;flex-wrap:wrap;gap:6px;min-height:0"></div>
+    <!-- Ticker pills -->
+    <div id="ticker-list" style="display:flex;flex-wrap:wrap;gap:6px;min-height:0;margin-bottom:12px"></div>
+    <!-- Trade settings inline -->
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:10px">
+      <div class="field" style="margin-bottom:0;min-width:0;overflow:hidden">
+        <div class="field-lbl" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Capital $</div>
+        <input class="field-inp" id="land-capital" type="number" value="10000" step="500"
+          onchange="saveTradeSettings()" style="font-size:14px;padding:9px 10px;width:100%;min-width:0"/>
+      </div>
+      <div class="field" style="margin-bottom:0;min-width:0;overflow:hidden">
+        <div class="field-lbl" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Risk %</div>
+        <input class="field-inp" id="land-risk" type="number" value="5" step="1" min="1" max="50"
+          onchange="saveTradeSettings()" style="font-size:14px;padding:9px 10px;width:100%;min-width:0"/>
+      </div>
+      <div class="field" style="margin-bottom:0;min-width:0;overflow:hidden">
+        <div class="field-lbl" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">DTE</div>
+        <select class="field-inp" id="land-dte" onchange="saveTradeSettings()"
+          style="color:var(--text);background:var(--s2);font-size:14px;padding:9px 10px;width:100%;min-width:0">
+          <option value="7">7d</option>
+          <option value="15">15d</option>
+          <option value="21">21d</option>
+          <option value="30">30d</option>
+        </select>
+      </div>
+    </div>
+    <!-- GO button -->
+    <button onclick="runFromList()" style="width:100%;background:var(--accent);color:#fff;border-radius:10px;padding:12px;font-size:14px;font-weight:900;border:none;letter-spacing:.04em;transition:opacity .15s" ontouchstart="" onmousedown="this.style.opacity='.8'" onmouseup="this.style.opacity='1'">GO</button>
   </div>
 </div>
 
@@ -374,38 +412,11 @@ body{padding-top:env(safe-area-inset-top)}
   <!-- LANDING VIEW -->
   <div id="landing-view">
 
-    <!-- Trade settings card -->
-    <div style="background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:14px;margin-top:4px">
-      <div class="sec-lbl" style="margin-bottom:10px">Trade Settings</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
-        <div class="field" style="margin-bottom:0">
-          <div class="field-lbl">Capital $</div>
-          <input class="field-inp" id="land-capital" type="number" value="10000" step="500"
-            onchange="saveTradeSettings()" style="font-size:14px;padding:9px 10px"/>
-        </div>
-        <div class="field" style="margin-bottom:0">
-          <div class="field-lbl">Risk %</div>
-          <input class="field-inp" id="land-risk" type="number" value="5" step="1" min="1" max="50"
-            onchange="saveTradeSettings()" style="font-size:14px;padding:9px 10px"/>
-        </div>
-        <div class="field" style="margin-bottom:0">
-          <div class="field-lbl">DTE</div>
-          <select class="field-inp" id="land-dte" onchange="saveTradeSettings()"
-            style="color:var(--text);background:var(--s2);font-size:14px;padding:9px 10px">
-            <option value="7">7d</option>
-            <option value="15">15d</option>
-            <option value="21">21d</option>
-            <option value="30">30d</option>
-          </select>
-        </div>
-      </div>
-    </div>
-
     <!-- Intro blurb -->
     <div style="padding:12px 14px;background:var(--s1);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:0 10px 10px 0">
       <div style="font-size:12px;color:var(--dim);line-height:1.8">
         <strong style="color:var(--text);font-size:13px">StrikeEdge</strong> gives you an AI-powered edge on every options trade.
-        Type any ticker and hit <strong style="color:var(--accent)">+</strong> to save it to your list. Tap a ticker to select it, then hit <strong style="color:var(--text)">Go</strong>. Set your capital, risk %, and DTE above and every strategy will be sized to your parameters.
+        Type a ticker and hit <strong style="color:var(--accent)">+</strong> to add it, set your capital, risk %, and DTE — then hit <strong style="color:var(--accent)">GO</strong>.
       </div>
     </div>
   </div>
