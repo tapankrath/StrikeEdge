@@ -51,10 +51,11 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
 /* ── LAYOUT ── */
 .app{max-width:480px;margin:0 auto;padding:0 0 80px;padding-bottom:calc(80px + env(safe-area-inset-bottom))}
 body{padding-top:env(safe-area-inset-top)}
+.page-wrap{max-width:480px;margin:0 auto}
 
 /* ── HEADER ── */
 #hdr{position:sticky;top:0;z-index:200;background:var(--s1);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);padding-top:env(safe-area-inset-top);box-shadow:0 1px 0 var(--border)}
-#sub-hdr{position:relative;z-index:100;background:var(--s1)}
+#sub-hdr{background:var(--s1);border-bottom:2px solid var(--border)}
 .hdr-top{display:flex;align-items:center;gap:12px;padding:10px 14px 12px}
 .logo-mark{width:44px;height:44px;flex-shrink:0;position:relative;border-radius:10px;box-shadow:0 0 18px rgba(255,107,53,0.22)}
 .logo-mark svg{width:44px;height:44px;display:block}
@@ -87,7 +88,7 @@ body{padding-top:env(safe-area-inset-top)}
 .tab:hover:not(.on){color:var(--text)}
 
 /* ── PANES ── */
-.pane{display:none;padding:16px 14px 20px}
+.pane{display:none;padding:14px 14px 20px;border-top:1px solid var(--border)}
 .pane.on{display:block}
 
 /* ── SECTION LABEL ── */
@@ -95,14 +96,14 @@ body{padding-top:env(safe-area-inset-top)}
 .sec-lbl::before{content:'';width:3px;height:14px;background:var(--accent);border-radius:2px;display:inline-block}
 
 /* ── CARDS ── */
-.card{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px}
-.card-dark{background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px}
+.card{background:var(--s1);border:1.5px solid var(--border2);border-radius:12px;padding:14px;margin-bottom:10px}
+.card-dark{background:var(--bg);border:1.5px solid var(--border2);border-radius:12px;padding:14px;margin-bottom:10px}
 
 /* ── SIGNAL CARD ── */
-.signal-banner{border-radius:10px;padding:14px;margin-bottom:10px;text-align:center;border:1px solid}
-.signal-banner.bull{background:var(--gbg);border-color:var(--gbd)}
-.signal-banner.bear{background:var(--rbg);border-color:var(--rbd)}
-.signal-banner.neutral{background:var(--abg);border-color:var(--abd)}
+.signal-banner{border-radius:12px;padding:16px;margin-bottom:10px;text-align:center;border:1.5px solid}
+.signal-banner.bull{background:var(--gbg);border-color:var(--green)}
+.signal-banner.bear{background:var(--rbg);border-color:var(--red)}
+.signal-banner.neutral{background:var(--abg);border-color:var(--amber)}
 .sig-label{font-size:10px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;margin-bottom:4px}
 .sig-action{font-size:26px;font-weight:900;letter-spacing:-.5px;margin-bottom:4px}
 .sig-conf{font-size:11px;font-weight:600;opacity:.8;margin-bottom:8px}
@@ -110,7 +111,7 @@ body{padding-top:env(safe-area-inset-top)}
 
 /* ── STAT GRID ── */
 .stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
-.stat-box{background:var(--s2);border:1px solid var(--border);border-radius:9px;padding:10px 8px;text-align:center}
+.stat-box{background:var(--s2);border:1.5px solid var(--border2);border-radius:10px;padding:10px 8px;text-align:center}
 .stat-lbl{font-size:8px;font-weight:800;color:var(--dim);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px}
 .stat-val{font-size:18px;font-weight:900;color:var(--text);line-height:1}
 .stat-sub{font-size:9px;color:var(--dim);margin-top:3px;font-weight:600}
@@ -269,9 +270,8 @@ body{padding-top:env(safe-area-inset-top)}
 </style>
 </head>
 <body>
-<div class="app">
 
-<!-- ═══ HEADER ═══ -->
+<!-- ═══ STICKY LOGO BAR ═══ -->
 <div id="hdr">
   <div class="hdr-top">
     <!-- LOGO -->
@@ -325,7 +325,10 @@ body{padding-top:env(safe-area-inset-top)}
   </div>
 </div>
 
-<!-- ═══ SCROLLABLE: MACRO + TABS + TICKER ═══ -->
+<!-- ═══ SCROLLABLE CONTENT ═══ -->
+<div class="app">
+
+<!-- MACRO + TABS + TICKER -->
 <div id="sub-hdr" style="background:var(--s1);border-bottom:1px solid var(--border)">
 
   <!-- PRICE BAR -->
