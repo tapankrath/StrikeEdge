@@ -339,14 +339,14 @@ body{padding-top:env(safe-area-inset-top)}
   </div>
 
   <!-- TICKER INPUT PANEL — only shown on Analyze tab -->
-  <div id="ticker-input-panel" style="padding:10px 14px 10px;border-top:1px solid var(--border);background:var(--s1)">
+  <div id="ticker-input-panel" style="padding:10px 14px 12px;border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:var(--s1)">
     <div style="display:flex;gap:6px;margin-bottom:8px">
       <input class="ticker-inp" id="sig-inp" placeholder="AAPL, NVDA, SPY…" maxlength="6"
-        style="flex:1;border-radius:10px;border:1.5px solid var(--border);background:var(--s2);padding:9px 14px;color:var(--text);font-size:15px;font-weight:800;text-transform:uppercase"
+        style="flex:1;border-radius:10px;border:1.5px solid var(--border2);background:var(--s2);padding:9px 14px;color:var(--text);font-size:15px;font-weight:800;text-transform:uppercase"
         oninput="this.value=this.value.toUpperCase()"
         onkeydown="if(event.key==='Enter')runFromList()">
       <button onclick="addTicker()" style="background:var(--s3);border:1.5px solid var(--border2);color:var(--dim);border-radius:10px;padding:9px 16px;font-size:20px;font-weight:900;line-height:1;min-width:46px">+</button>
-      <button onclick="runFromList()" style="background:var(--accent);color:#fff;border-radius:10px;padding:9px 18px;font-size:13px;font-weight:900;min-width:52px">Go</button>
+      <button onclick="runFromList()" style="background:var(--accent);color:#fff;border-radius:10px;padding:9px 18px;font-size:13px;font-weight:900;min-width:52px;border:none">Go</button>
     </div>
     <div id="ticker-list" style="display:flex;flex-wrap:wrap;gap:6px;min-height:0"></div>
   </div>
@@ -358,32 +358,35 @@ body{padding-top:env(safe-area-inset-top)}
   <!-- LANDING VIEW -->
   <div id="landing-view">
 
-    <!-- Trade settings — compact 3-col row -->
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px;margin-top:4px">
-      <div class="field" style="margin-bottom:0">
-        <div class="field-lbl">Capital $</div>
-        <input class="field-inp" id="land-capital" type="number" value="10000" step="500"
-          onchange="saveTradeSettings()" style="font-size:14px;padding:9px 10px"/>
-      </div>
-      <div class="field" style="margin-bottom:0">
-        <div class="field-lbl">Risk %</div>
-        <input class="field-inp" id="land-risk" type="number" value="5" step="1" min="1" max="50"
-          onchange="saveTradeSettings()" style="font-size:14px;padding:9px 10px"/>
-      </div>
-      <div class="field" style="margin-bottom:0">
-        <div class="field-lbl">DTE</div>
-        <select class="field-inp" id="land-dte" onchange="saveTradeSettings()"
-          style="color:var(--text);background:var(--s2);font-size:14px;padding:9px 10px">
-          <option value="7">7d</option>
-          <option value="15">15d</option>
-          <option value="21">21d</option>
-          <option value="30">30d</option>
-        </select>
+    <!-- Trade settings card -->
+    <div style="background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:14px;margin-top:4px">
+      <div class="sec-lbl" style="margin-bottom:10px">Trade Settings</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+        <div class="field" style="margin-bottom:0">
+          <div class="field-lbl">Capital $</div>
+          <input class="field-inp" id="land-capital" type="number" value="10000" step="500"
+            onchange="saveTradeSettings()" style="font-size:14px;padding:9px 10px"/>
+        </div>
+        <div class="field" style="margin-bottom:0">
+          <div class="field-lbl">Risk %</div>
+          <input class="field-inp" id="land-risk" type="number" value="5" step="1" min="1" max="50"
+            onchange="saveTradeSettings()" style="font-size:14px;padding:9px 10px"/>
+        </div>
+        <div class="field" style="margin-bottom:0">
+          <div class="field-lbl">DTE</div>
+          <select class="field-inp" id="land-dte" onchange="saveTradeSettings()"
+            style="color:var(--text);background:var(--s2);font-size:14px;padding:9px 10px">
+            <option value="7">7d</option>
+            <option value="15">15d</option>
+            <option value="21">21d</option>
+            <option value="30">30d</option>
+          </select>
+        </div>
       </div>
     </div>
 
     <!-- Intro blurb -->
-    <div style="padding:14px;background:var(--s1);border:1px solid var(--border);border-radius:12px">
+    <div style="padding:12px 14px;background:var(--s1);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:0 10px 10px 0">
       <div style="font-size:12px;color:var(--dim);line-height:1.8">
         <strong style="color:var(--text);font-size:13px">StrikeEdge</strong> gives you an AI-powered edge on every options trade.
         Type any ticker and hit <strong style="color:var(--accent)">+</strong> to save it to your list. Tap a ticker to select it, then hit <strong style="color:var(--text)">Go</strong>. Set your capital, risk %, and DTE above and every strategy will be sized to your parameters.
