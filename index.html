@@ -359,14 +359,14 @@ body{padding-top:env(safe-area-inset-top)}
     <div class="empty">
       <div class="empty-ico">&#9889;</div>
       <div class="empty-title">Select a ticker</div>
-      <div class="empty-sub">Auto-loading SPY... (free API: calls spaced to avoid rate limits)</div>
+      <div class="empty-sub">Loading SPY signal...</div>
     </div>
   </div>
 </div>
 <!-- ═══ PANE 1: STRATEGY ═══ -->
 <div class="pane" id="pane1">
-  <div class="sec-lbl">Strategy Builder</div>
-  <div class="card">
+  <div id="st-out"></div>
+  <div class="card" id="st-form-card">
     <div class="grid2">
       <div class="field">
         <div class="field-lbl">Capital $</div>
@@ -395,7 +395,6 @@ body{padding-top:env(safe-area-inset-top)}
     </div>
     <button class="btn-primary" id="st-btn" onclick="runStrategy()">⚡ Build Strategy</button>
   </div>
-  <div id="st-out"></div>
 </div>
 
 <!-- ═══ PANE 2: BACKTEST ═══ -->
@@ -588,12 +587,8 @@ var priceCache = {};
   initPriceCards(); // show placeholder instantly
   loadPrices();     // queued: call 1 & 2
   loadMacro();      // queued: calls 3-6, spaced 8s apart
-  // Auto-load SPY signal after prices
-  // Delay signal auto-load — let price calls go first through queue
-  // Each call is 8s apart, 2 price calls = 16s before signal fires
-  setTimeout(function(){ 
-    if(TD_KEY) loadSignal('SPY'); 
-  }, 500); // goes into queue, will execute after price calls clear
+  // Auto-load SPY signal right away — uses cachedFetch (immediate)
+  if(TD_KEY) loadSignal('SPY');
   // Load portfolio
   try{ positions = JSON.parse(localStorage.getItem('se_positions')||'[]'); }catch(e){ positions=[]; }
   renderPortfolio();
@@ -654,37 +649,42 @@ function tdFetch(path){
     .then(function(d){ if(d.status==='error') throw new Error(d.message||'TD error'); return d; });
 }
 
-// ── API RATE LIMITER ──
-// Free tier: 8 calls/min. We queue all calls and space them 8s apart.
-var _apiQueue = [], _apiRunning = false;
-function tdFetchQueued(path, priority){
-  return new Promise(function(resolve, reject){
-    _apiQueue.push({path:path, resolve:resolve, reject:reject, priority:!!priority});
-    if(!_apiRunning) _processQueue();
-  });
-}
-function _processQueue(){
-  if(!_apiQueue.length){ _apiRunning=false; return; }
-  _apiRunning = true;
-  // Pull highest priority first
-  var idx = 0;
-  for(var i=1;i<_apiQueue.length;i++) if(_apiQueue[i].priority && !_apiQueue[idx].priority) idx=i;
-  var item = _apiQueue.splice(idx,1)[0];
-  tdFetch(item.path).then(item.resolve).catch(item.reject);
-  setTimeout(_processQueue, 8000); // 8s gap = safe under 8/min limit
-}
-
-// ── CACHE ──
+// ── CACHE + RATE LIMIT ──
+// Strategy: user-triggered calls fire immediately (cached).
+// Macro background calls are queued with spacing.
 var _cache = {};
+var _macroQueue = [], _macroRunning = false;
+
 function cachedFetch(path, ttlMs){
   var now = Date.now();
   if(_cache[path] && now - _cache[path].ts < (ttlMs||60000)){
     return Promise.resolve(_cache[path].data);
   }
-  return tdFetchQueued(path).then(function(d){
+  return tdFetch(path).then(function(d){
     _cache[path] = {data:d, ts:Date.now()};
     return d;
   });
+}
+
+function macroFetch(path, ttlMs){
+  var now = Date.now();
+  if(_cache[path] && now - _cache[path].ts < (ttlMs||120000)){
+    return Promise.resolve(_cache[path].data);
+  }
+  return new Promise(function(resolve, reject){
+    _macroQueue.push({path:path, resolve:resolve, reject:reject});
+    if(!_macroRunning) _runMacroQueue();
+  }).then(function(d){
+    _cache[path] = {data:d, ts:Date.now()};
+    return d;
+  });
+}
+function _runMacroQueue(){
+  if(!_macroQueue.length){ _macroRunning=false; return; }
+  _macroRunning = true;
+  var item = _macroQueue.shift();
+  tdFetch(item.path).then(item.resolve).catch(item.reject);
+  setTimeout(_runMacroQueue, 9000);
 }
 
 function loadPrices(){
@@ -727,7 +727,7 @@ function loadMacro(){
     {sym:'GLD',  lbl:'m-gold',chg:'m-gold-c', dec:2}
   ];
   items.forEach(function(it){
-    cachedFetch('/quote?symbol='+it.sym, 120000)
+    macroFetch('/quote?symbol='+it.sym, 120000)
     .then(function(d){
       var v = parseFloat(d.close||d.previous_close||0);
       var c = parseFloat(d.percent_change||0);
@@ -809,18 +809,12 @@ function loadSignal(sym){
       + '30-day Realized Vol: '+(rv30?rv30.toFixed(1)+'%':'N/A')+'\n'
       + 'Est IV: '+(iv?iv.toFixed(1)+'%':'N/A')+'\n'
       + 'VIX: '+(vix||'N/A')+'\n\n'
-      + 'Return ONLY this JSON (no markdown, no explanation):\n'
-      + '{"signal":"BULLISH or BEARISH or NEUTRAL","confidence":"High or Medium or Low",'
-      + '"action":"BUY CALL or BUY PUT or SELL VOL or BUY VOL or WAIT",'
-      + '"reason":"2-3 sentences: what technicals say, what vol says, what to do",'
-      + '"iv_regime":"Rich or Fair or Cheap",'
-      + '"key_level":number,'
-      + '"stop":number}';
+      + 'Return ONLY a JSON object, no text before or after:\n'
+      + '{"signal":"BULLISH","confidence":"High","action":"BUY CALL","reason":"explanation here","iv_regime":"Fair","key_level":550.0,"stop":540.0}';
 
     aiCall(prompt, 600, function(text){
       try{
-        var d = JSON.parse(text.split('```').join('').split('```json').join('').trim());
-        renderSignalAI(sym, price, chg, rsi14, ma20, rv30, iv, vix, d);
+        var cl=text.split('```json').join('').split('```').join('').trim();var st=cl.indexOf('{'),en=cl.lastIndexOf('}');var d=JSON.parse(cl.slice(st,en+1));renderSignalAI(sym, price, chg, rsi14, ma20, rv30, iv, vix, d);
       }catch(e){
         renderSignalRules(sym, price, chg, rsi14, ma20, rv30, iv, vix);
       }
@@ -917,32 +911,44 @@ function runStrategy(){
     var chg = parseFloat(q.percent_change||0);
     var vix = parseFloat(document.getElementById('m-vix').textContent||18);
 
-    var prompt = 'You are a senior options strategist. Return ONLY valid JSON, no markdown.\n\n'
-      + 'Setup:\n'
-      + '- Ticker: '+sym+' @ $'+price.toFixed(2)+' ('+( chg>=0?'+':'')+chg.toFixed(2)+'% today)\n'
-      + '- Trading capital: $'+cap.toLocaleString()+'\n'
-      + '- Risk per trade: $'+riskAmt.toFixed(0)+' ('+risk+'%)\n'
-      + '- Preferred DTE: '+dte+' days\n'
-      + '- VIX: '+vix+'\n\n'
-      + 'Return JSON:\n'
-      + '{"regime":"high_vol or low_vol or trending_up or trending_down or choppy",'
-      + '"strategies":[{'
-      + '"name":"strategy name","type":"call or put or spread or straddle or strangle or condor",'
-      + '"legs":"describe the exact legs (e.g. Buy 1 SPY 550C 14DTE)",'
-      + '"est_cost":number,"max_profit":number,"max_loss":number,'
-      + '"breakeven":number,"win_rate_pct":number,'
-      + '"best_for":"one sentence when this works",'
-      + '"risk":"key risk in one sentence",'
-      + '"score":number}],'
-      + '"top_pick":0,'
-      + '"macro_note":"one sentence on macro/VIX context"}\n\n'
-      + 'RULES: est_cost = realistic premium cost in dollars (not per share). max_profit for spreads/condors = credit received * 100 * contracts. max_loss = debit paid * 100 or spread width * 100. NEVER use 99999. win_rate_pct between 25-75. score 1-10.';
+    var prompt = 'You are a senior options strategist. Analyze this setup and suggest 3-4 option strategies.\n\n'
+      + 'SETUP:\n'
+      + 'Ticker: '+sym+' at $'+price.toFixed(2)+' ('+( chg>=0?'+':'')+chg.toFixed(2)+'% today)\n'
+      + 'Capital: $'+cap.toLocaleString()+' | Risk per trade: $'+riskAmt.toFixed(0)+' ('+risk+'%)\n'
+      + 'DTE preference: '+dte+' days | VIX: '+(vix||'unknown')+'\n\n'
+      + 'Respond with ONLY a JSON object (no text before or after). Use this exact structure:\n'
+      + '{\n'
+      + '  "regime": "trending_up",\n'
+      + '  "macro_note": "one sentence on market context",\n'
+      + '  "top_pick": 0,\n'
+      + '  "strategies": [\n'
+      + '    {\n'
+      + '      "name": "Bull Call Spread",\n'
+      + '      "legs": "Buy 1 '+sym+' '+Math.round(price)+' Call '+dte+'DTE, Sell 1 '+sym+' '+Math.round(price*1.02)+' Call '+dte+'DTE",\n'
+      + '      "est_cost": 250,\n'
+      + '      "max_profit": 250,\n'
+      + '      "max_loss": 250,\n'
+      + '      "win_rate_pct": 52,\n'
+      + '      "best_for": "When expecting moderate upside",\n'
+      + '      "risk": "Loses full premium if below lower strike at expiry"\n'
+      + '    }\n'
+      + '  ]\n'
+      + '}\n\n'
+      + 'RULES: est_cost in total dollars (premium * 100 * contracts). max_profit/max_loss realistic. win_rate_pct between 25-75. top_pick = index of best strategy.';
 
     aiCall(prompt, 1200, function(text){
       try{
-        var d = JSON.parse(text.split('```').join('').split('```json').join('').trim());
+        // Strip markdown, find the JSON object
+        var clean = text.split('```json').join('').split('```').join('').trim();
+        var start = clean.indexOf('{');
+        var end = clean.lastIndexOf('}');
+        if(start===-1||end===-1) throw new Error('no JSON');
+        var d = JSON.parse(clean.slice(start, end+1));
         renderStrategy(d, sym, price, riskAmt);
-      }catch(e){ out.innerHTML='<div class="err-box">AI parse error. Try again.</div>'; }
+      }catch(e){
+        // Show raw AI response if parse fails
+        out.innerHTML='<div class="ai-box">'+text.replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')+'</div>';
+      }
       btn.disabled=false; btn.textContent='⚡ Build Strategy';
     }, function(err){
       out.innerHTML='<div class="err-box">Error: '+err+'</div>';
@@ -951,8 +957,16 @@ function runStrategy(){
   });
 }
 
+function clearStrategy(){
+  document.getElementById('st-out').innerHTML='';
+  var fc=document.getElementById('st-form-card');
+  if(fc) fc.style.display='block';
+}
 function renderStrategy(d, sym, price, riskAmt){
   var out = document.getElementById('st-out');
+  // Collapse the form after successful build
+  var formCard = document.getElementById('st-form-card');
+  if(formCard) formCard.style.marginBottom='8px';
   // Sanitize AI numbers — cap absurd values
   (d.strategies||[]).forEach(function(s){
     s.est_cost = Math.min(Math.abs(parseFloat(s.est_cost)||0), riskAmt*3);
@@ -963,7 +977,10 @@ function renderStrategy(d, sym, price, riskAmt){
   });
   var out = document.getElementById('st-out');
   var html = '<div class="card fade-in">'
-    + '<div class="sec-lbl">Market Regime: <span style="color:var(--accent);text-transform:capitalize">'+d.regime.replace(/_/g,' ')+'</span></div>'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'
+    + '<div class="sec-lbl" style="margin-bottom:0">Regime: <span style="color:var(--accent);text-transform:capitalize">'+d.regime.replace(/_/g,' ')+'</span></div>'
+    + '<button onclick="clearStrategy()" class="btn-ghost" style="font-size:10px;padding:4px 10px">&#8635; Rebuild</button>'
+    + '</div>'
     + '<div style="font-size:11px;color:var(--dim);margin-bottom:12px;line-height:1.6">'+d.macro_note+'</div>'
     + '<div class="strat-grid">';
   (d.strategies||[]).forEach(function(s, i){
