@@ -53,7 +53,8 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
 body{padding-top:env(safe-area-inset-top)}
 
 /* ── HEADER ── */
-#hdr{position:sticky;top:0;z-index:200;background:var(--s1);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);padding-top:env(safe-area-inset-top);box-shadow:0 2px 20px rgba(0,0,0,0.55),0 1px 0 var(--border)}
+#hdr{position:sticky;top:0;z-index:200;background:var(--s1);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);padding-top:env(safe-area-inset-top);box-shadow:0 1px 0 var(--border)}
+#sub-hdr{position:relative;z-index:100;background:var(--s1)}
 .hdr-top{display:flex;align-items:center;gap:12px;padding:10px 14px 12px}
 .logo-mark{width:44px;height:44px;flex-shrink:0;position:relative;border-radius:10px;box-shadow:0 0 18px rgba(255,107,53,0.22)}
 .logo-mark svg{width:44px;height:44px;display:block}
@@ -322,6 +323,10 @@ body{padding-top:env(safe-area-inset-top)}
     </div>
     <button class="hdr-keys" id="keys-btn" onclick="openSettings()">⚙ Keys</button>
   </div>
+</div>
+
+<!-- ═══ SCROLLABLE: MACRO + TABS + TICKER ═══ -->
+<div id="sub-hdr" style="background:var(--s1);border-bottom:1px solid var(--border)">
 
   <!-- PRICE BAR -->
   <div class="data-strip">
