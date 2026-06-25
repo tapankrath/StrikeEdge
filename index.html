@@ -57,11 +57,11 @@ body{padding-top:env(safe-area-inset-top);display:flex;flex-direction:column;ali
 /* ── HEADER ── */
 #hdr{position:sticky;top:0;z-index:200;background:var(--s1);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);padding-top:env(safe-area-inset-top);box-shadow:0 1px 0 var(--border);width:100%}
 #sub-hdr{background:var(--s1);border-bottom:2px solid var(--border);width:100%}
-.hdr-top{display:flex;align-items:center;gap:12px;padding:8px 14px 8px;max-width:480px;margin:0 auto;width:100%}
-.logo-mark{width:34px;height:34px;flex-shrink:0;position:relative;border-radius:8px;box-shadow:0 0 14px rgba(255,107,53,0.22)}
-.logo-mark svg{width:34px;height:34px;display:block}
+.hdr-top{display:flex;align-items:center;gap:12px;padding:10px 14px 12px;max-width:480px;margin:0 auto;width:100%}
+.logo-mark{width:44px;height:44px;flex-shrink:0;position:relative;border-radius:10px;box-shadow:0 0 18px rgba(255,107,53,0.22)}
+.logo-mark svg{width:44px;height:44px;display:block}
 .brand-text{flex:1}
-.brand-name{font-size:17px;font-weight:900;letter-spacing:-.6px;line-height:1}
+.brand-name{font-size:20px;font-weight:900;letter-spacing:-.6px;line-height:1}
 .brand-name .s1{color:var(--accent)}
 .brand-name .s2{color:var(--text)}
 .brand-sub{font-size:9px;font-weight:700;color:var(--muted);letter-spacing:.22em;text-transform:uppercase;margin-top:3px}
@@ -72,7 +72,7 @@ body{padding-top:env(safe-area-inset-top);display:flex;flex-direction:column;ali
 /* ── PRICE BAR ── */
 .data-strip{display:flex;align-items:stretch;border-top:1px solid var(--border);border-bottom:1px solid var(--border);overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;background:var(--bg)}
 .data-strip::-webkit-scrollbar{display:none}
-.ds-item{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6px 10px;border-right:1px solid var(--border);cursor:pointer;white-space:nowrap;flex:1;transition:background .15s}
+.ds-item{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:9px 14px;border-right:1px solid var(--border);cursor:pointer;white-space:nowrap;flex:1;transition:background .15s}
 .ds-item:last-child{border-right:none}
 .ds-item:hover{background:var(--s2)}
 .ds-sym{font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;margin-bottom:4px;color:var(--muted)}
@@ -84,12 +84,12 @@ body{padding-top:env(safe-area-inset-top);display:flex;flex-direction:column;ali
 
 /* ── TABS ── */
 #tab-bar{display:grid;grid-template-columns:repeat(5,1fr);border-top:1px solid var(--border);background:var(--s1)}
-.tab{padding:9px 2px;min-height:38px;font-size:11px;font-weight:800;color:var(--muted);letter-spacing:.02em;text-transform:uppercase;text-align:center;border-top:2px solid transparent;background:none;transition:color .15s,border-color .15s;position:relative;top:-1px}
+.tab{padding:12px 2px;min-height:44px;font-size:11px;font-weight:800;color:var(--muted);letter-spacing:.02em;text-transform:uppercase;text-align:center;border-top:2px solid transparent;background:none;transition:color .15s,border-color .15s;position:relative;top:-1px}
 .tab.on{color:var(--accent);border-top-color:var(--accent);background:rgba(255,107,53,0.05)}
 .tab:hover:not(.on){color:var(--text)}
 
 /* ── PANES ── */
-.pane{display:none;padding:10px 12px 20px}
+.pane{display:none;padding:14px 14px 20px}
 .pane.on{display:block}
 
 /* ── PAGE BORDER ── */
@@ -100,8 +100,8 @@ body{padding-top:env(safe-area-inset-top);display:flex;flex-direction:column;ali
 .sec-lbl::before{content:'';width:3px;height:14px;background:var(--accent);border-radius:2px;display:inline-block}
 
 /* ── CARDS ── */
-.card{background:var(--s1);border:1.5px solid var(--border2);border-radius:10px;padding:10px;margin-bottom:8px}
-.card-dark{background:var(--bg);border:1.5px solid var(--border2);border-radius:10px;padding:10px;margin-bottom:8px}
+.card{background:var(--s1);border:1.5px solid var(--border2);border-radius:12px;padding:14px;margin-bottom:10px}
+.card-dark{background:var(--bg);border:1.5px solid var(--border2);border-radius:12px;padding:14px;margin-bottom:10px}
 
 /* ── SIGNAL CARD ── */
 .signal-banner{border-radius:12px;padding:16px;margin-bottom:10px;text-align:center;border:1.5px solid}
@@ -369,17 +369,17 @@ body{padding-top:env(safe-area-inset-top);display:flex;flex-direction:column;ali
   </div>
 
   <!-- TICKER INPUT PANEL — only shown on Analyze tab -->
-  <div id="ticker-input-panel" style="padding:8px 14px 10px;border-top:1px solid var(--border);background:var(--s1)">
+  <div id="ticker-input-panel" style="padding:12px 14px 14px;border-top:1px solid var(--border);background:var(--s1)">
     <!-- Row 1: ticker search + add -->
-    <div style="display:flex;gap:6px;margin-bottom:7px">
+    <div style="display:flex;gap:8px;margin-bottom:10px">
       <input class="ticker-inp" id="sig-inp" placeholder="AAPL, NVDA, SPY…" maxlength="6"
-        style="flex:1;border-radius:8px;border:1.5px solid var(--border2);background:var(--s2);padding:8px 12px;color:var(--text);font-size:14px;font-weight:800;text-transform:uppercase"
+        style="flex:1;border-radius:10px;border:1.5px solid var(--border2);background:var(--s2);padding:10px 14px;color:var(--text);font-size:15px;font-weight:800;text-transform:uppercase"
         oninput="this.value=this.value.toUpperCase()"
         onkeydown="if(event.key==='Enter')addTicker()">
-      <button onclick="addTicker()" style="background:var(--s3);border:1.5px solid var(--border2);color:var(--dim);border-radius:8px;padding:8px 14px;font-size:18px;font-weight:900;line-height:1;min-width:44px;flex-shrink:0">+</button>
+      <button onclick="addTicker()" style="background:var(--s3);border:1.5px solid var(--border2);color:var(--dim);border-radius:10px;padding:10px 16px;font-size:20px;font-weight:900;line-height:1;min-width:48px;flex-shrink:0">+</button>
     </div>
     <!-- Ticker pills -->
-    <div id="ticker-list" style="display:flex;flex-wrap:wrap;gap:5px;min-height:0;margin-bottom:8px"></div>
+    <div id="ticker-list" style="display:flex;flex-wrap:wrap;gap:6px;min-height:0;margin-bottom:12px"></div>
     <!-- Trade settings inline -->
     <div style="display:flex;gap:8px;align-items:flex-end">
       <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:6px;flex:1">
@@ -413,61 +413,61 @@ body{padding-top:env(safe-area-inset-top);display:flex;flex-direction:column;ali
 <div class="pane on" id="pane0">
 
   <!-- LANDING VIEW -->
-  <div id="landing-view" style="padding-top:2px">
+  <div id="landing-view" style="padding-top:4px">
 
     <!-- Market Mood Card -->
-    <div style="background:var(--s1);border:1.5px solid var(--border2);border-radius:10px;padding:10px;margin-bottom:8px">
-      <div class="sec-lbl" style="margin-bottom:8px">Market Mood</div>
+    <div style="background:var(--s1);border:1.5px solid var(--border2);border-radius:12px;padding:14px;margin-bottom:10px">
+      <div class="sec-lbl" style="margin-bottom:10px">Market Mood</div>
       <div id="mood-content">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
-          <div id="mood-icon" style="font-size:22px;line-height:1">—</div>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+          <div id="mood-icon" style="font-size:28px;line-height:1">—</div>
           <div>
-            <div id="mood-label" style="font-size:15px;font-weight:900;color:var(--text)">Loading…</div>
-            <div id="mood-sub" style="font-size:10px;color:var(--muted);margin-top:1px;font-weight:600"></div>
+            <div id="mood-label" style="font-size:17px;font-weight:900;color:var(--text)">Loading…</div>
+            <div id="mood-sub" style="font-size:11px;color:var(--muted);margin-top:2px;font-weight:600"></div>
           </div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-          <div style="background:var(--s2);border:1px solid var(--border2);border-radius:8px;padding:8px">
-            <div style="font-size:8px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:3px">VIX</div>
-            <div id="mood-vix" style="font-size:16px;font-weight:900;color:var(--text)">--</div>
-            <div id="mood-vix-txt" style="font-size:9px;color:var(--muted);margin-top:1px;font-weight:600"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div style="background:var(--s2);border:1px solid var(--border2);border-radius:9px;padding:10px">
+            <div style="font-size:8px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">VIX</div>
+            <div id="mood-vix" style="font-size:18px;font-weight:900;color:var(--text)">--</div>
+            <div id="mood-vix-txt" style="font-size:9px;color:var(--muted);margin-top:2px;font-weight:600"></div>
           </div>
-          <div style="background:var(--s2);border:1px solid var(--border2);border-radius:8px;padding:8px">
-            <div style="font-size:8px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:3px">Trend</div>
-            <div id="mood-trend" style="font-size:16px;font-weight:900;color:var(--text)">--</div>
-            <div id="mood-trend-txt" style="font-size:9px;color:var(--muted);margin-top:1px;font-weight:600"></div>
+          <div style="background:var(--s2);border:1px solid var(--border2);border-radius:9px;padding:10px">
+            <div style="font-size:8px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">Trend</div>
+            <div id="mood-trend" style="font-size:18px;font-weight:900;color:var(--text)">--</div>
+            <div id="mood-trend-txt" style="font-size:9px;color:var(--muted);margin-top:2px;font-weight:600"></div>
           </div>
         </div>
       </div>
     </div>
 
     <!-- Strategy Guide 2x2 -->
-    <div style="background:var(--s1);border:1.5px solid var(--border2);border-radius:10px;padding:10px;margin-bottom:8px">
-      <div class="sec-lbl" style="margin-bottom:8px">Strategy Guide</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-        <div style="padding:8px;background:var(--gbg);border:1.5px solid var(--gbd);border-radius:8px">
-          <div style="font-size:11px;font-weight:900;color:var(--green);margin-bottom:2px">📈 Bull Call</div>
+    <div style="background:var(--s1);border:1.5px solid var(--border2);border-radius:12px;padding:14px;margin-bottom:10px">
+      <div class="sec-lbl" style="margin-bottom:10px">Strategy Guide</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px">
+        <div style="padding:10px;background:var(--gbg);border:1.5px solid var(--gbd);border-radius:9px">
+          <div style="font-size:12px;font-weight:900;color:var(--green);margin-bottom:3px">📈 Bull Call</div>
           <div style="font-size:9px;color:var(--dim);font-weight:600">Low VIX · Bullish</div>
         </div>
-        <div style="padding:8px;background:var(--rbg);border:1.5px solid var(--rbd);border-radius:8px">
-          <div style="font-size:11px;font-weight:900;color:var(--red);margin-bottom:2px">📉 Bear Put</div>
+        <div style="padding:10px;background:var(--rbg);border:1.5px solid var(--rbd);border-radius:9px">
+          <div style="font-size:12px;font-weight:900;color:var(--red);margin-bottom:3px">📉 Bear Put</div>
           <div style="font-size:9px;color:var(--dim);font-weight:600">Low VIX · Bearish</div>
         </div>
-        <div style="padding:8px;background:var(--abg);border:1.5px solid var(--abd);border-radius:8px">
-          <div style="font-size:11px;font-weight:900;color:var(--amber);margin-bottom:2px">⚡ Straddle</div>
+        <div style="padding:10px;background:var(--abg);border:1.5px solid var(--abd);border-radius:9px">
+          <div style="font-size:12px;font-weight:900;color:var(--amber);margin-bottom:3px">⚡ Straddle</div>
           <div style="font-size:9px;color:var(--dim);font-weight:600">High VIX · Any dir</div>
         </div>
-        <div style="padding:8px;background:var(--bbg);border:1.5px solid var(--bbd);border-radius:8px">
-          <div style="font-size:11px;font-weight:900;color:var(--blue);margin-bottom:2px">🎯 Iron Condor</div>
+        <div style="padding:10px;background:var(--bbg);border:1.5px solid var(--bbd);border-radius:9px">
+          <div style="font-size:12px;font-weight:900;color:var(--blue);margin-bottom:3px">🎯 Iron Condor</div>
           <div style="font-size:9px;color:var(--dim);font-weight:600">High VIX · Neutral</div>
         </div>
       </div>
     </div>
 
     <!-- Tip -->
-    <div style="padding:10px 12px;background:var(--s1);border:1.5px solid var(--border2);border-left:3px solid var(--accent);border-radius:0 8px 8px 0;margin-bottom:8px">
-      <div style="font-size:11px;color:var(--dim);line-height:1.6">
-        <strong style="color:var(--text);font-size:12px">StrikeEdge</strong> gives you an AI-powered edge on every options trade.
+    <div style="padding:12px 14px;background:var(--s1);border:1.5px solid var(--border2);border-left:3px solid var(--accent);border-radius:0 10px 10px 0;margin-bottom:10px">
+      <div style="font-size:12px;color:var(--dim);line-height:1.8">
+        <strong style="color:var(--text);font-size:13px">StrikeEdge</strong> gives you an AI-powered edge on every options trade.
         Type a ticker and hit <strong style="color:var(--accent)">+</strong> to add it, set your capital, risk %, and DTE — then hit <strong style="color:var(--accent)">GO →</strong>.
       </div>
     </div>
@@ -985,10 +985,15 @@ function runAnalysis(){
       return;
     }
 
-    // Single AI call: signal + strategies together
-    sigOut.innerHTML = '<div class="ai-loading"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span style="margin-left:6px;color:var(--muted)">AI analysis running…</span></div>';
+    // Single AI call: signal + strategies together (with web search for context)
+    sigOut.innerHTML = '<div class="ai-loading"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span style="margin-left:6px;color:var(--muted)">Researching news & macro…</span></div>';
 
-    var prompt = 'You are a professional options trader. Analyze this setup and return ONLY valid JSON with no text before or after.\n\n'
+    var prompt = 'You are a professional options trader. Before forming a view, use web search to quickly check:\n'
+      + '1. Recent news for '+sym+' (last 48h) — any earnings, guidance, FDA, legal, or major catalyst?\n'
+      + '2. Upcoming macro events in the next '+dte+' days (FOMC, CPI, jobs report, etc)\n'
+      + '3. Is the broader sector / market moving with or against '+sym+'?\n'
+      + '4. Any notable peer moves (e.g. if '+sym+' is a tech stock, are peers up or down today?)\n\n'
+      + 'After searching, analyze this setup and return ONLY valid JSON with no text before or after.\n\n'
       + 'Ticker: '+sym+'\n'
       + 'Price: $'+price.toFixed(2)+' ('+( chg>=0?'+':'')+chg.toFixed(2)+'% today)\n'
       + 'RSI-14: '+(rsi14?rsi14.toFixed(1):'N/A')+'\n'
@@ -997,9 +1002,10 @@ function runAnalysis(){
       + 'Est IV: '+(iv?iv.toFixed(1)+'%':'N/A')+'\n'
       + 'VIX: '+(vix||'N/A')+'\n'
       + 'Capital: $'+capital+' | Risk amt: $'+riskAmt.toFixed(0)+' | DTE: '+dte+' days\n\n'
+      + 'IMPORTANT: If there is an earnings date within the DTE window, flag it in macro_note and adjust strategy accordingly (e.g. prefer defined-risk spreads or avoid directional bets).\n\n'
       + 'Return ONLY this JSON structure:\n'
-      + '{"signal":"BULLISH","confidence":"High","action":"BUY CALL","reason":"2-3 sentence explanation","iv_regime":"Fair","key_level":'+Math.round(price)+'.0,"stop":'+(Math.round(price*0.98))+'.0,'
-      + '"regime":"neutral_to_bearish","macro_note":"one sentence on market context","top_pick":0,'
+      + '{"signal":"BULLISH","confidence":"High","action":"BUY CALL","reason":"2-3 sentence explanation incorporating news/macro context","iv_regime":"Fair","key_level":'+Math.round(price)+'.0,"stop":'+(Math.round(price*0.98))+'.0,'
+      + '"regime":"neutral_to_bearish","macro_note":"1-2 sentences: key news, macro events, sector context, or earnings warning if relevant","top_pick":0,'
       + '"strategies":['
       + '{"name":"Bear Put Spread","legs":"Buy 1 '+sym+' '+Math.round(price)+' Put '+dte+'DTE, Sell 1 '+sym+' '+Math.round(price*0.97)+' Put '+dte+'DTE","est_cost":'+Math.round(riskAmt*0.5)+',"max_profit":'+Math.round(riskAmt*1.5)+',"max_loss":'+Math.round(riskAmt*0.5)+',"win_rate_pct":42,"best_for":"Moderate downside","risk":"Loses full premium if above strike at expiry"},'
       + '{"name":"Iron Condor","legs":"Sell 1 '+sym+' '+Math.round(price*0.97)+' Put, Buy 1 '+sym+' '+Math.round(price*0.95)+' Put, Sell 1 '+sym+' '+Math.round(price*1.02)+' Call, Buy 1 '+sym+' '+Math.round(price*1.04)+' Call — all '+dte+'DTE","est_cost":'+Math.round(riskAmt*0.6)+',"max_profit":'+Math.round(riskAmt*0.7)+',"max_loss":'+Math.round(riskAmt*0.6)+',"win_rate_pct":58,"best_for":"Range-bound market","risk":"Sharp directional move"},\n'
@@ -1007,7 +1013,7 @@ function runAnalysis(){
       + '{"name":"Long Straddle","legs":"Buy 1 '+sym+' '+Math.round(price)+' Call '+dte+'DTE, Buy 1 '+sym+' '+Math.round(price)+' Put '+dte+'DTE","est_cost":'+Math.round(riskAmt*0.8)+',"max_profit":'+Math.round(riskAmt*2.5)+',"max_loss":'+Math.round(riskAmt*0.8)+',"win_rate_pct":35,"best_for":"Big move either direction","risk":"Rapid theta decay if price stays flat"}'
       + ']}';
 
-    aiCall(prompt, 1400, function(text){
+    aiCallWithSearch(prompt, 1600, function(text){
       try{
         var cl = text.split('```json').join('').split('```').join('').trim();
         var st = cl.indexOf('{'), en = cl.lastIndexOf('}');
@@ -1651,6 +1657,68 @@ function calcRVArr(closes, n){
 // ═══════════════════════════════════════════════════════
 //  AI: Anthropic call
 // ═══════════════════════════════════════════════════════
+// ── AI CALL WITH WEB SEARCH (used only for main runAnalysis) ──
+function aiCallWithSearch(prompt, maxTokens, onSuccess, onError){
+  if(!CLAUDE_KEY){ onError('No Anthropic key'); return; }
+
+  var tools = [{
+    type: 'web_search_20250305',
+    name: 'web_search'
+  }];
+
+  function runTurn(messages){
+    fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'x-api-key': CLAUDE_KEY,
+        'anthropic-version':'2023-06-01',
+        'anthropic-dangerous-direct-browser-access':'true'
+      },
+      body: JSON.stringify({
+        model:'claude-sonnet-4-6',
+        max_tokens: maxTokens,
+        tools: tools,
+        messages: messages
+      })
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      if(data.error) throw new Error(data.error.message);
+
+      // If model wants to use tools, feed results back and continue
+      if(data.stop_reason === 'tool_use'){
+        var assistantMsg = { role:'assistant', content: data.content };
+        // The web_search tool results are returned as server_tool_use blocks;
+        // we just need to pass the assistant turn back and let the API continue
+        var toolResults = [];
+        (data.content||[]).forEach(function(b){
+          if(b.type === 'tool_use'){
+            toolResults.push({
+              type: 'tool_result',
+              tool_use_id: b.id,
+              content: b.content || ''
+            });
+          }
+        });
+        var nextMessages = messages.concat([
+          assistantMsg,
+          { role:'user', content: toolResults }
+        ]);
+        runTurn(nextMessages);
+      } else {
+        // Final text response
+        var text = '';
+        (data.content||[]).forEach(function(b){ if(b.type==='text') text+=b.text; });
+        onSuccess(text);
+      }
+    })
+    .catch(function(e){ onError(e.message||'API error'); });
+  }
+
+  runTurn([{ role:'user', content: prompt }]);
+}
+
 function aiCall(prompt, maxTokens, onSuccess, onError){
   if(!CLAUDE_KEY){ onError('No Anthropic key — add via ⚙️ Keys'); return; }
   fetch('https://api.anthropic.com/v1/messages',{
