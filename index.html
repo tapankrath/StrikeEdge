@@ -346,8 +346,8 @@ body{padding-top:env(safe-area-inset-top)}
   <!-- LANDING VIEW -->
   <div id="landing-view">
     <div class="ticker-row">
-      <button class="ticker-pill on" id="pill-SPY" onclick="selectTicker('SPY')">SPY</button>
-      <button class="ticker-pill" id="pill-QQQ" onclick="selectTicker('QQQ')">QQQ</button>
+      <button class="ticker-pill on" id="pill-SPY" onclick="selectTicker('SPY');runAnalysis()">SPY</button>
+      <button class="ticker-pill" id="pill-QQQ" onclick="selectTicker('QQQ');runAnalysis()">QQQ</button>
       <div class="ticker-search">
         <input class="ticker-inp" id="sig-inp" placeholder="AAPL, NVDA..." maxlength="6"
           oninput="this.value=this.value.toUpperCase()"
@@ -355,12 +355,11 @@ body{padding-top:env(safe-area-inset-top)}
         <button class="ticker-go" onclick="analyzeCustom()">Go</button>
       </div>
     </div>
-    <button class="btn-primary" id="analyze-btn" onclick="runAnalysis()">⚡ Analyze</button>
     <div style="margin-top:18px;padding:14px;background:var(--s1);border:1px solid var(--border);border-radius:12px">
       <div style="font-size:12px;color:var(--dim);line-height:1.8">
         <strong style="color:var(--text);font-size:13px">StrikeEdge</strong> gives you an AI-powered edge on every options trade.
-        Select <span style="color:var(--accent);font-weight:800">SPY</span> or <span style="color:var(--amber);font-weight:800">QQQ</span> — or type any ticker — then hit <strong style="color:var(--text)">Analyze</strong> to get a live market regime read, a directional signal with technicals, and the best-fit options strategy with ranked alternatives. All in one place, in seconds.
-        Use the other tabs to backtest strategies, view price charts with momentum indicators, track your open positions, and run P&amp;L scenario analysis with Black-Scholes modeling.
+        Tap <span style="color:var(--accent);font-weight:800">SPY</span> or <span style="color:var(--amber);font-weight:800">QQQ</span> to analyze instantly — or type any ticker and hit <strong style="color:var(--text)">Go</strong>. You'll get a live regime read, directional signal with technicals, and the best-fit options strategy with ranked alternatives. All in one place, in seconds.
+        Use the other tabs to backtest strategies, view price charts, track open positions, and run P&amp;L scenarios.
       </div>
     </div>
   </div>
