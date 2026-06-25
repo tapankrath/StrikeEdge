@@ -2,7 +2,7 @@
   "name": "StrikeEdge",
   "short_name": "StrikeEdge",
   "description": "Options Intelligence — Signal, Strategy, Backtest, P&L",
-  "start_url": "./strikeedge.html",
+  "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#0a0e1a",
   "theme_color": "#0f1629",
