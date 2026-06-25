@@ -53,11 +53,11 @@ body{padding-top:env(safe-area-inset-top)}
 
 /* ── HEADER ── */
 #hdr{position:sticky;top:0;z-index:200;background:var(--s1);backdrop-filter:blur(12px);padding-top:env(safe-area-inset-top);box-shadow:0 1px 0 var(--border)}
-.hdr-top{display:flex;align-items:center;gap:10px;padding:10px 14px 8px}
+.hdr-top{display:flex;align-items:center;gap:10px;padding:8px 12px 6px}
 .logo-mark{width:42px;height:42px;flex-shrink:0;position:relative}
 .logo-mark svg{width:42px;height:42px}
 .brand-text{flex:1}
-.brand-name{font-size:22px;font-weight:900;letter-spacing:-.5px;line-height:1}
+.brand-name{font-size:19px;font-weight:900;letter-spacing:-.5px;line-height:1}
 .brand-name .s1{color:var(--accent)}
 .brand-name .s2{color:var(--text)}
 .brand-sub{font-size:9px;font-weight:700;color:var(--dim);letter-spacing:.18em;text-transform:uppercase;margin-top:2px}
@@ -65,16 +65,18 @@ body{padding-top:env(safe-area-inset-top)}
 .hdr-keys.set{color:var(--green);border-color:var(--gbd)}
 
 /* ── PRICE BAR ── */
-.price-bar{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:8px 14px}
-.pc{background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;cursor:pointer;transition:border-color .15s}
-.pc:hover{border-color:var(--border2)}
-.pc.spy{border-top:2px solid var(--blue)}
-.pc.qqq{border-top:2px solid var(--amber)}
-.pc-sym{font-size:9px;font-weight:800;letter-spacing:.15em;text-transform:uppercase;margin-bottom:3px}
-.pc.spy .pc-sym{color:var(--blue)}
-.pc.qqq .pc-sym{color:var(--amber)}
-.pc-price{font-size:17px;font-weight:800;color:var(--text)}
-.pc-chg{font-size:11px;font-weight:700;margin-top:2px}
+
+.data-strip{display:flex;align-items:center;border-top:1px solid var(--border);border-bottom:1px solid var(--border);overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.data-strip::-webkit-scrollbar{display:none}
+.ds-item{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:7px 12px;border-right:1px solid var(--border);cursor:pointer;white-space:nowrap;flex-shrink:0;transition:background .15s;min-width:70px}
+.ds-item:last-child{border-right:none}
+.ds-item:hover{background:var(--s2)}
+.ds-sym{font-size:8px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;margin-bottom:2px}
+.ds-item.spy .ds-sym{color:var(--blue)}
+.ds-item.qqq .ds-sym{color:var(--amber)}
+.ds-item.macro .ds-sym{color:var(--muted)}
+.ds-price{font-size:14px;font-weight:900;color:var(--text);letter-spacing:-.3px;line-height:1}
+.ds-chg{font-size:9px;font-weight:700;margin-top:2px}
 .up{color:var(--green)}.dn{color:var(--red)}.flat{color:var(--dim)}
 
 /* ── TABS ── */
@@ -200,11 +202,7 @@ body{padding-top:env(safe-area-inset-top)}
 #chart-canvas{width:100%;height:180px;border-radius:8px;display:block}
 
 /* ── MACRO ROW ── */
-.macro-row{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px}
-.macro-box{background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:8px 6px;text-align:center}
-.macro-lbl{font-size:7px;font-weight:800;color:var(--dim);text-transform:uppercase;letter-spacing:.1em;margin-bottom:3px}
-.macro-val{font-size:13px;font-weight:900;color:var(--text)}
-.macro-chg{font-size:9px;font-weight:700;margin-top:2px}
+
 
 /* ── DTE PILLS ── */
 .dte-row{display:flex;gap:6px;margin-bottom:10px}
@@ -298,16 +296,36 @@ body{padding-top:env(safe-area-inset-top)}
   </div>
 
   <!-- PRICE BAR -->
-  <div class="price-bar">
-    <div class="pc spy" onclick="loadSignal('SPY')">
-      <div class="pc-sym">SPY</div>
-      <div class="pc-price" id="spy-price">—</div>
-      <div class="pc-chg" id="spy-chg">Loading…</div>
+  <div class="data-strip">
+    <div class="ds-item spy" onclick="loadSignal('SPY')">
+      <div class="ds-sym">SPY</div>
+      <div class="ds-price" id="spy-price">—</div>
+      <div class="ds-chg" id="spy-chg"></div>
     </div>
-    <div class="pc qqq" onclick="loadSignal('QQQ')">
-      <div class="pc-sym">QQQ</div>
-      <div class="pc-price" id="qqq-price">—</div>
-      <div class="pc-chg" id="qqq-chg">Loading…</div>
+    <div class="ds-item qqq" onclick="loadSignal('QQQ')">
+      <div class="ds-sym">QQQ</div>
+      <div class="ds-price" id="qqq-price">—</div>
+      <div class="ds-chg" id="qqq-chg"></div>
+    </div>
+    <div class="ds-item macro">
+      <div class="ds-sym">VIX</div>
+      <div class="ds-price" id="m-vix">--</div>
+      <div class="ds-chg" id="m-vix-c"></div>
+    </div>
+    <div class="ds-item macro">
+      <div class="ds-sym">DXY</div>
+      <div class="ds-price" id="m-dxy">--</div>
+      <div class="ds-chg" id="m-dxy-c"></div>
+    </div>
+    <div class="ds-item macro">
+      <div class="ds-sym">Bonds</div>
+      <div class="ds-price" id="m-tnx">--</div>
+      <div class="ds-chg" id="m-tnx-c"></div>
+    </div>
+    <div class="ds-item macro">
+      <div class="ds-sym">Gold</div>
+      <div class="ds-price" id="m-gold">--</div>
+      <div class="ds-chg" id="m-gold-c"></div>
     </div>
   </div>
 
@@ -336,20 +354,12 @@ body{padding-top:env(safe-area-inset-top)}
     </div>
   </div>
 
-  <!-- Macro strip -->
-  <div class="macro-row" id="macro-row">
-    <div class="macro-box"><div class="macro-lbl">VIX</div><div class="macro-val" id="m-vix">--</div><div class="macro-chg" id="m-vix-c"></div></div>
-    <div class="macro-box"><div class="macro-lbl">DXY</div><div class="macro-val" id="m-dxy">--</div><div class="macro-chg" id="m-dxy-c"></div></div>
-    <div class="macro-box"><div class="macro-lbl">Bonds</div><div class="macro-val" id="m-tnx">--</div><div class="macro-chg" id="m-tnx-c"></div></div>
-    <div class="macro-box"><div class="macro-lbl">Gold</div><div class="macro-val" id="m-gold">--</div><div class="macro-chg" id="m-gold-c"></div></div>
-  </div>
-
   <!-- Signal output -->
   <div id="sig-out">
     <div class="empty">
       <div class="empty-ico">&#9889;</div>
       <div class="empty-title">Select a ticker</div>
-      <div class="empty-sub">SPY or QQQ auto-loads - or search any ticker</div>
+      <div class="empty-sub">Auto-loading SPY... (free API: calls spaced to avoid rate limits)</div>
     </div>
   </div>
 </div>
@@ -575,10 +585,15 @@ var priceCache = {};
   CLAUDE_KEY = localStorage.getItem('se_claude') || '';
   TD_KEY = localStorage.getItem('se_td') || '';
   updateKeysBtn();
-  loadPrices();
-  loadMacro();
+  initPriceCards(); // show placeholder instantly
+  loadPrices();     // queued: call 1 & 2
+  loadMacro();      // queued: calls 3-6, spaced 8s apart
   // Auto-load SPY signal after prices
-  setTimeout(function(){ loadSignal('SPY'); }, 1200);
+  // Delay signal auto-load — let price calls go first through queue
+  // Each call is 8s apart, 2 price calls = 16s before signal fires
+  setTimeout(function(){ 
+    if(TD_KEY) loadSignal('SPY'); 
+  }, 500); // goes into queue, will execute after price calls clear
   // Load portfolio
   try{ positions = JSON.parse(localStorage.getItem('se_positions')||'[]'); }catch(e){ positions=[]; }
   renderPortfolio();
@@ -639,24 +654,52 @@ function tdFetch(path){
     .then(function(d){ if(d.status==='error') throw new Error(d.message||'TD error'); return d; });
 }
 
+// ── API RATE LIMITER ──
+// Free tier: 8 calls/min. We queue all calls and space them 8s apart.
+var _apiQueue = [], _apiRunning = false;
+function tdFetchQueued(path, priority){
+  return new Promise(function(resolve, reject){
+    _apiQueue.push({path:path, resolve:resolve, reject:reject, priority:!!priority});
+    if(!_apiRunning) _processQueue();
+  });
+}
+function _processQueue(){
+  if(!_apiQueue.length){ _apiRunning=false; return; }
+  _apiRunning = true;
+  // Pull highest priority first
+  var idx = 0;
+  for(var i=1;i<_apiQueue.length;i++) if(_apiQueue[i].priority && !_apiQueue[idx].priority) idx=i;
+  var item = _apiQueue.splice(idx,1)[0];
+  tdFetch(item.path).then(item.resolve).catch(item.reject);
+  setTimeout(_processQueue, 8000); // 8s gap = safe under 8/min limit
+}
+
+// ── CACHE ──
+var _cache = {};
+function cachedFetch(path, ttlMs){
+  var now = Date.now();
+  if(_cache[path] && now - _cache[path].ts < (ttlMs||60000)){
+    return Promise.resolve(_cache[path].data);
+  }
+  return tdFetchQueued(path).then(function(d){
+    _cache[path] = {data:d, ts:Date.now()};
+    return d;
+  });
+}
+
 function loadPrices(){
   if(!TD_KEY){ setPrice('spy','—','No key'); setPrice('qqq','—','No key'); return; }
+  // Single quote call per ticker — has price + change
   ['SPY','QQQ'].forEach(function(sym){
-    tdFetch('/price?symbol='+sym)
+    cachedFetch('/quote?symbol='+sym, 60000)
     .then(function(d){
-      var p = parseFloat(d.price||0);
-      if(!p) throw new Error('no price');
+      var p = parseFloat(d.close||d.previous_close||0);
+      var chg = parseFloat(d.percent_change||0);
       priceCache[sym] = p;
-      // Get % change from quote endpoint
-      return tdFetch('/quote?symbol='+sym).then(function(q){
-        var chg = parseFloat(q.percent_change||0);
-        setPrice(sym.toLowerCase(), '$'+p.toFixed(2),
-          (chg>=0?'+':'')+chg.toFixed(2)+'%', chg>=0?'up':chg<0?'dn':'flat');
-      }).catch(function(){
-        setPrice(sym.toLowerCase(), '$'+p.toFixed(2), '', 'flat');
-      });
+      setPrice(sym.toLowerCase(), p?'$'+p.toFixed(2):'—',
+        p?(chg>=0?'+':'')+chg.toFixed(2)+'%':'', chg>=0?'up':chg<0?'dn':'flat');
     })
-    .catch(function(e){ setPrice(sym.toLowerCase(),'—',e.message||'Error','flat'); });
+    .catch(function(e){ setPrice(sym.toLowerCase(),'—','—','flat'); });
   });
 }
 
@@ -666,31 +709,33 @@ function setPrice(sym, price, chg, dir){
   if(pe) pe.textContent = price;
   if(ce){ ce.textContent = chg; ce.className = 'pc-chg '+(dir||'flat'); }
 }
+// Show queued status immediately
+function initPriceCards(){
+  if(!TD_KEY){
+    setPrice('spy','—','Add key'); setPrice('qqq','—','Add key'); return;
+  }
+  setPrice('spy','…','queued','flat'); setPrice('qqq','…','queued','flat');
+}
 
 function loadMacro(){
   if(!TD_KEY) return;
+  // Macro loads after prices, queued — lowest priority, 8s between each
   var items = [
-    {sym:'VIX', id:'vix', lbl:'m-vix', chg:'m-vix-c', dec:1, alts:['VIXY','VXX']},
-    {sym:'UUP', id:'dxy', lbl:'m-dxy', chg:'m-dxy-c', dec:2, alts:['DXY']},
-    {sym:'TLT', id:'tnx', lbl:'m-tnx', chg:'m-tnx-c', dec:2, alts:['IEF']},
-    {sym:'GLD', id:'gold', lbl:'m-gold', chg:'m-gold-c', dec:2, alts:['IAU']}
+    {sym:'VIXY', lbl:'m-vix', chg:'m-vix-c', dec:1},
+    {sym:'UUP',  lbl:'m-dxy', chg:'m-dxy-c', dec:2},
+    {sym:'TLT',  lbl:'m-tnx', chg:'m-tnx-c', dec:2},
+    {sym:'GLD',  lbl:'m-gold',chg:'m-gold-c', dec:2}
   ];
   items.forEach(function(it){
-    var syms = [it.sym].concat(it.alts||[]);
-    function tryNext(list){
-      if(!list.length) return;
-      tdFetch('/quote?symbol='+encodeURIComponent(list[0]))
-      .then(function(d){
-        var v = parseFloat(d.close||d.price||0);
-        if(!v && list.length>1){ tryNext(list.slice(1)); return; }
-        var c = parseFloat(d.percent_change||0);
-        var ve = document.getElementById(it.lbl);
-        var ce = document.getElementById(it.chg);
-        if(ve) ve.textContent = v.toFixed(it.dec);
-        if(ce){ ce.textContent=(c>=0?'+':'')+c.toFixed(2)+'%'; ce.className='macro-chg '+(c>=0?'up':c<0?'dn':'flat'); }
-      }).catch(function(){ if(list.length>1) tryNext(list.slice(1)); });
-    }
-    tryNext(syms);
+    cachedFetch('/quote?symbol='+it.sym, 120000)
+    .then(function(d){
+      var v = parseFloat(d.close||d.previous_close||0);
+      var c = parseFloat(d.percent_change||0);
+      var ve = document.getElementById(it.lbl);
+      var ce = document.getElementById(it.chg);
+      if(ve && v) ve.textContent = v.toFixed(it.dec);
+      if(ce && v){ ce.textContent=(c>=0?'+':'')+c.toFixed(2)+'%'; ce.className='macro-chg '+(c>=0?'up':c<0?'dn':'flat'); }
+    }).catch(function(){});
   });
 }
 
@@ -716,9 +761,9 @@ function loadSignal(sym){
 
   // Fetch quote + 30d history in parallel
   Promise.all([
-    tdFetch('/quote?symbol='+sym),
-    tdFetch('/time_series?symbol='+sym+'&interval=1day&outputsize=35'),
-    tdFetch('/options?symbol='+sym+'&expiration_date=next').catch(function(){ return null; })
+    cachedFetch('/quote?symbol='+sym, 60000),
+    cachedFetch('/time_series?symbol='+sym+'&interval=1day&outputsize=35', 300000),
+    Promise.resolve(null) // skip options call — saves 1 API credit
   ])
   .then(function(results){
     var q = results[0], hist = results[1], opts = results[2];
@@ -864,7 +909,7 @@ function runStrategy(){
 
   // Fetch current data first
   var fetchData = TD_KEY
-    ? tdFetch('/quote?symbol='+sym).catch(function(){return {};})
+    ? cachedFetch('/quote?symbol='+sym, 60000).catch(function(){return {};})
     : Promise.resolve({});
 
   fetchData.then(function(q){
@@ -966,7 +1011,7 @@ function runBacktest(){
   var out = document.getElementById('bt-out');
   out.innerHTML = '<div class="ai-loading"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span style="margin-left:6px;color:var(--muted)">Loading '+btTicker+' history…</span></div>';
 
-  tdFetch('/time_series?symbol='+btTicker+'&interval=1day&outputsize='+(btWindow+10))
+  cachedFetch('/time_series?symbol='+btTicker+'&interval=1day&outputsize='+(btWindow+10), 300000)
   .then(function(hist){
     var rows = (hist.values||[]).slice(0, btWindow).reverse();
     if(rows.length < 2){ out.innerHTML='<div class="err-box">Not enough history.</div>'; return; }
@@ -1053,7 +1098,7 @@ function chSelect(sym){
   if(!TD_KEY){ out.innerHTML='<div class="err-box">Add Twelve Data key to load charts.</div>'; return; }
   out.innerHTML = '<div class="ai-loading"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span style="margin-left:6px;color:var(--muted)">Loading chart…</span></div>';
 
-  tdFetch('/time_series?symbol='+sym+'&interval=1day&outputsize=60')
+  cachedFetch('/time_series?symbol='+sym+'&interval=1day&outputsize=60', 300000)
   .then(function(hist){
     var rows = (hist.values||[]).slice(0,60).reverse();
     if(rows.length < 2){ out.innerHTML='<div class="err-box">Not enough data.</div>'; return; }
