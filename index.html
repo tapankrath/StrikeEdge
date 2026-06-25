@@ -80,7 +80,7 @@ body{padding-top:env(safe-area-inset-top)}
 .up{color:var(--green)}.dn{color:var(--red)}.flat{color:var(--dim)}
 
 /* ── TABS ── */
-#tab-bar{display:grid;grid-template-columns:repeat(6,1fr);border-top:2px solid var(--border);background:var(--s1)}
+#tab-bar{display:grid;grid-template-columns:repeat(5,1fr);border-top:2px solid var(--border);background:var(--s1)}
 .tab{padding:12px 2px;min-height:44px;font-size:9px;font-weight:800;color:var(--dim);letter-spacing:.04em;text-transform:uppercase;text-align:center;border-top:2px solid transparent;border-bottom:none;background:none;transition:color .15s,border-color .15s;margin-top:-2px}
 .tab.on{color:var(--accent);border-top-color:var(--accent);background:rgba(255,107,53,0.06)}
 .tab:hover:not(.on){color:var(--text)}
@@ -332,19 +332,19 @@ body{padding-top:env(safe-area-inset-top)}
   <!-- TAB BAR -->
   <div id="tab-bar">
     <button class="tab on" onclick="showTab(0);goHome()">Analyze</button>
-    <button class="tab" onclick="showTab(1)">Strategy</button>
-    <button class="tab" onclick="showTab(2)">Backtest</button>
-    <button class="tab" onclick="showTab(3)">Chart</button>
-    <button class="tab" onclick="showTab(4)">Portfolio</button>
-    <button class="tab" onclick="showTab(5)">P&amp;L</button>
+    <button class="tab" onclick="showTab(1)">Backtest</button>
+    <button class="tab" onclick="showTab(2)">Chart</button>
+    <button class="tab" onclick="showTab(3)">Portfolio</button>
+    <button class="tab" onclick="showTab(4)">P&amp;L</button>
   </div>
 </div>
 
-<!-- ═══ PANE 0: SIGNAL + STRATEGY (combined) ═══ -->
+<!-- ═══ PANE 0: ANALYZE ═══ -->
 <div class="pane on" id="pane0">
 
   <!-- LANDING VIEW -->
   <div id="landing-view">
+    <!-- Ticker row -->
     <div class="ticker-row">
       <button class="ticker-pill on" id="pill-SPY" onclick="selectTicker('SPY');runAnalysis()">SPY</button>
       <button class="ticker-pill" id="pill-QQQ" onclick="selectTicker('QQQ');runAnalysis()">QQQ</button>
@@ -355,16 +355,41 @@ body{padding-top:env(safe-area-inset-top)}
         <button class="ticker-go" onclick="analyzeCustom()">Go</button>
       </div>
     </div>
-    <div style="margin-top:18px;padding:14px;background:var(--s1);border:1px solid var(--border);border-radius:12px">
+
+    <!-- Trade settings — compact 3-col row -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
+      <div class="field" style="margin-bottom:0">
+        <div class="field-lbl">Capital $</div>
+        <input class="field-inp" id="land-capital" type="number" value="10000" step="500"
+          onchange="saveTradeSettings()" style="font-size:14px;padding:9px 10px"/>
+      </div>
+      <div class="field" style="margin-bottom:0">
+        <div class="field-lbl">Risk %</div>
+        <input class="field-inp" id="land-risk" type="number" value="5" step="1" min="1" max="50"
+          onchange="saveTradeSettings()" style="font-size:14px;padding:9px 10px"/>
+      </div>
+      <div class="field" style="margin-bottom:0">
+        <div class="field-lbl">DTE</div>
+        <select class="field-inp" id="land-dte" onchange="saveTradeSettings()"
+          style="color:var(--text);background:var(--s2);font-size:14px;padding:9px 10px">
+          <option value="7">7d</option>
+          <option value="15">15d</option>
+          <option value="21">21d</option>
+          <option value="30">30d</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Intro blurb -->
+    <div style="padding:14px;background:var(--s1);border:1px solid var(--border);border-radius:12px">
       <div style="font-size:12px;color:var(--dim);line-height:1.8">
         <strong style="color:var(--text);font-size:13px">StrikeEdge</strong> gives you an AI-powered edge on every options trade.
-        Tap <span style="color:var(--accent);font-weight:800">SPY</span> or <span style="color:var(--amber);font-weight:800">QQQ</span> to analyze instantly — or type any ticker and hit <strong style="color:var(--text)">Go</strong>. You'll get a live regime read, directional signal with technicals, and the best-fit options strategy with ranked alternatives. All in one place, in seconds.
-        Use the other tabs to backtest strategies, view price charts, track open positions, and run P&amp;L scenarios.
+        Tap <span style="color:var(--accent);font-weight:800">SPY</span> or <span style="color:var(--amber);font-weight:800">QQQ</span> to analyze instantly — or type any ticker and hit <strong style="color:var(--text)">Go</strong>. Set your capital, risk %, and DTE above and every strategy recommendation will be sized to your actual trade parameters.
       </div>
     </div>
   </div>
 
-  <!-- RESULTS VIEW (hidden until analyze) -->
+  <!-- RESULTS VIEW -->
   <div id="results-view" style="display:none">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
       <button onclick="goHome()" style="background:var(--s3);border:1px solid var(--border2);color:var(--dim);border-radius:8px;padding:7px 14px;font-size:12px;font-weight:800;cursor:pointer">← Back</button>
@@ -375,43 +400,9 @@ body{padding-top:env(safe-area-inset-top)}
   </div>
 
 </div>
-<!-- ═══ PANE 1: STRATEGY (kept as tab for direct access with settings) ═══ -->
-<div class="pane" id="pane1">
-  <div class="sec-lbl">Strategy Builder</div>
-  <div class="card" id="st-form-card">
-    <div class="grid2">
-      <div class="field">
-        <div class="field-lbl">Capital $</div>
-        <input class="field-inp" id="st-capital" type="number" value="10000" step="500"/>
-      </div>
-      <div class="field">
-        <div class="field-lbl">Risk % per trade</div>
-        <input class="field-inp" id="st-risk" type="number" value="5" step="1" min="1" max="50"/>
-      </div>
-    </div>
-    <div class="grid2">
-      <div class="field">
-        <div class="field-lbl">Ticker</div>
-        <input class="field-inp" id="st-ticker" type="text" value="SPY" maxlength="6"
-          oninput="this.value=this.value.toUpperCase()"/>
-      </div>
-      <div class="field">
-        <div class="field-lbl">DTE</div>
-        <select class="field-inp" id="st-dte" style="color:var(--text);background:var(--s2)">
-          <option value="7">7 days</option>
-          <option value="15">15 days</option>
-          <option value="21">21 days</option>
-          <option value="30">30 days</option>
-        </select>
-      </div>
-    </div>
-    <button class="btn-primary" id="st-btn" onclick="runStrategy()">⚡ Build Strategy</button>
-  </div>
-  <div id="st-out" style="margin-top:8px"></div>
-</div>
 
-<!-- ═══ PANE 2: BACKTEST ═══ -->
-<div class="pane" id="pane2">
+<!-- ═══ PANE 1: BACKTEST ═══ -->
+<div class="pane" id="pane1">
   <div class="sec-lbl">Backtest · Historical Performance</div>
 
   <div class="ticker-row" style="margin-bottom:10px">
@@ -437,8 +428,8 @@ body{padding-top:env(safe-area-inset-top)}
   </div>
 </div>
 
-<!-- ═══ PANE 3: CHART ═══ -->
-<div class="pane" id="pane3">
+<!-- ═══ PANE 2: CHART ═══ -->
+<div class="pane" id="pane2">
   <div class="sec-lbl">Chart Analyzer</div>
 
   <div class="ticker-row">
@@ -457,8 +448,8 @@ body{padding-top:env(safe-area-inset-top)}
   </div>
 </div>
 
-<!-- ═══ PANE 4: PORTFOLIO ═══ -->
-<div class="pane" id="pane4">
+<!-- ═══ PANE 3: PORTFOLIO ═══ -->
+<div class="pane" id="pane3">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
     <div class="sec-lbl" style="margin-bottom:0">Portfolio</div>
     <button class="btn-ghost" onclick="showAddPos()">+ Add Position</button>
@@ -500,8 +491,8 @@ body{padding-top:env(safe-area-inset-top)}
   </div>
 </div>
 
-<!-- ═══ PANE 5: P&L CALCULATOR ═══ -->
-<div class="pane" id="pane5">
+<!-- ═══ PANE 4: P&L CALCULATOR ═══ -->
+<div class="pane" id="pane4">
   <div class="sec-lbl">P&L Calculator</div>
   <div class="card">
     <div class="scenario-grid">
@@ -600,6 +591,13 @@ var priceCache = {};
   initPriceCards();
   loadPrices();
   loadMacro();
+  // Restore trade settings
+  var cap = localStorage.getItem('se_capital');
+  var risk = localStorage.getItem('se_risk');
+  var dte = localStorage.getItem('se_dte');
+  if(cap) document.getElementById('land-capital').value = cap;
+  if(risk) document.getElementById('land-risk').value = risk;
+  if(dte){ var sel = document.getElementById('land-dte'); if(sel) sel.value = dte; }
   // Load portfolio
   try{ positions = JSON.parse(localStorage.getItem('se_positions')||'[]'); }catch(e){ positions=[]; }
   renderPortfolio();
@@ -625,7 +623,6 @@ function saveSettings(){
   var msg = document.getElementById('save-msg');
   msg.style.display = 'block';
   setTimeout(function(){ msg.style.display='none'; closeSettings(); }, 1200);
-  // Reload data with new keys
   loadPrices();
   loadMacro();
 }
@@ -645,8 +642,8 @@ function updateKeyStatus(k, val){
 function showTab(n){
   document.querySelectorAll('.pane').forEach(function(p,i){ p.className='pane'+(i===n?' on':''); });
   document.querySelectorAll('.tab').forEach(function(t,i){ t.className='tab'+(i===n?' on':''); });
-  if(n===3 && chTicker) chSelect(chTicker);
-  if(n===4) renderPortfolio();
+  if(n===2 && chTicker) chSelect(chTicker);
+  if(n===3) renderPortfolio();
 }
 
 // ═══════════════════════════════════════════════════════
@@ -755,6 +752,22 @@ function loadMacro(){
 // ═══════════════════════════════════════════════════════
 var currentAnalyzeTicker = 'SPY';
 
+function saveTradeSettings(){
+  var cap = parseFloat(document.getElementById('land-capital').value)||10000;
+  var risk = parseFloat(document.getElementById('land-risk').value)||5;
+  var dte = parseInt(document.getElementById('land-dte').value)||7;
+  localStorage.setItem('se_capital', cap);
+  localStorage.setItem('se_risk', risk);
+  localStorage.setItem('se_dte', dte);
+}
+
+function getTradeSettings(){
+  return {
+    capital: parseFloat(document.getElementById('land-capital').value)||10000,
+    risk: parseFloat(document.getElementById('land-risk').value)||5,
+    dte: parseInt(document.getElementById('land-dte').value)||7
+  };
+}
 function selectTicker(sym){
   currentAnalyzeTicker = sym;
   ['SPY','QQQ'].forEach(function(s){
@@ -817,7 +830,7 @@ function runAnalysis(){
     var iv = rv30 ? rv30 * 1.15 : 18;
     var vix = parseFloat(document.getElementById('m-vix').textContent||0);
 
-    document.getElementById('results-ticker-lbl').textContent = sym + ' · $' + price.toFixed(2) + ' (' + (chg>=0?'+':'') + chg.toFixed(2) + '%)';
+    document.getElementById('results-ticker-lbl').textContent = sym + ' · $' + price.toFixed(2) + ' (' + (chg>=0?'+':'') + chg.toFixed(2) + '%) · Risk $' + (capital * riskPct / 100).toFixed(0) + ' · ' + ts.dte + 'DTE';
 
     if(!CLAUDE_KEY){
       // Rule-based fallback for both signal and strategy
@@ -830,10 +843,11 @@ function runAnalysis(){
     // Single AI call: signal + strategies together
     sigOut.innerHTML = '<div class="ai-loading"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span style="margin-left:6px;color:var(--muted)">AI analysis running…</span></div>';
 
-    var capital = parseInt(localStorage.getItem('se_capital')||'10000');
-    var riskPct = parseInt(localStorage.getItem('se_risk')||'5');
+    var ts = getTradeSettings();
+    var capital = ts.capital;
+    var riskPct = ts.risk;
     var riskAmt = capital * riskPct / 100;
-    var dte = 7;
+    var dte = ts.dte;
 
     var prompt = 'You are a professional options trader. Analyze this setup and return ONLY valid JSON with no text before or after.\n\n'
       + 'Ticker: '+sym+'\n'
@@ -963,131 +977,10 @@ function renderRuleFallbackStrategy(sym, price, vix, d){
 // Keep loadSignal as alias for compatibility
 function loadSignal(sym){ selectTicker(sym); runAnalysis(); }
 
-function runStrategy_fromSig(sym){
-  document.getElementById('st-ticker').value = sym;
-  showTab(1);
-  runStrategy();
-}
-
 function statBox(lbl, val, sub, color){
   return '<div class="stat-box"><div class="stat-lbl">'+lbl+'</div>'
     +'<div class="stat-val" style="color:'+(color||'var(--text)')+'">'+val+'</div>'
     +'<div class="stat-sub">'+sub+'</div></div>';
-}
-
-// ═══════════════════════════════════════════════════════
-//  STRATEGY TAB
-// ═══════════════════════════════════════════════════════
-function runStrategy(){
-  if(!CLAUDE_KEY){ document.getElementById('st-out').innerHTML='<div class="err-box">Add Anthropic key to use AI strategy builder.</div>'; return; }
-  var cap = parseFloat(document.getElementById('st-capital').value)||10000;
-  var risk = parseFloat(document.getElementById('st-risk').value)||5;
-  // Persist for analyze tab
-  localStorage.setItem('se_capital', cap);
-  localStorage.setItem('se_risk', risk);
-  var sym = (document.getElementById('st-ticker').value||'SPY').toUpperCase();
-  var dte = parseInt(document.getElementById('st-dte').value)||14;
-  var riskAmt = cap * risk / 100;
-  var btn = document.getElementById('st-btn');
-  btn.disabled = true; btn.textContent = 'Building…';
-  var out = document.getElementById('st-out');
-  out.innerHTML = '<div class="ai-loading"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span style="margin-left:6px;color:var(--muted)">Analyzing '+sym+'…</span></div>';
-
-  // Fetch current data first
-  var fetchData = TD_KEY
-    ? cachedFetch('/quote?symbol='+sym, 60000).catch(function(){return {};})
-    : Promise.resolve({});
-
-  fetchData.then(function(q){
-    var price = parseFloat(q.close||q.price||priceCache[sym]||500);
-    var chg = parseFloat(q.percent_change||0);
-    var vix = parseFloat(document.getElementById('m-vix').textContent||18);
-
-    var prompt = 'You are a senior options strategist. Analyze this setup and suggest 3-4 option strategies.\n\n'
-      + 'SETUP:\n'
-      + 'Ticker: '+sym+' at $'+price.toFixed(2)+' ('+( chg>=0?'+':'')+chg.toFixed(2)+'% today)\n'
-      + 'Capital: $'+cap.toLocaleString()+' | Risk per trade: $'+riskAmt.toFixed(0)+' ('+risk+'%)\n'
-      + 'DTE preference: '+dte+' days | VIX: '+(vix||'unknown')+'\n\n'
-      + 'Respond with ONLY a JSON object (no text before or after). Use this exact structure:\n'
-      + '{\n'
-      + '  "regime": "trending_up",\n'
-      + '  "macro_note": "one sentence on market context",\n'
-      + '  "top_pick": 0,\n'
-      + '  "strategies": [\n'
-      + '    {\n'
-      + '      "name": "Bull Call Spread",\n'
-      + '      "legs": "Buy 1 '+sym+' '+Math.round(price)+' Call '+dte+'DTE, Sell 1 '+sym+' '+Math.round(price*1.02)+' Call '+dte+'DTE",\n'
-      + '      "est_cost": 250,\n'
-      + '      "max_profit": 250,\n'
-      + '      "max_loss": 250,\n'
-      + '      "win_rate_pct": 52,\n'
-      + '      "best_for": "When expecting moderate upside",\n'
-      + '      "risk": "Loses full premium if below lower strike at expiry"\n'
-      + '    }\n'
-      + '  ]\n'
-      + '}\n\n'
-      + 'RULES: est_cost in total dollars (premium * 100 * contracts). max_profit/max_loss realistic. win_rate_pct between 25-75. top_pick = index of best strategy.';
-
-    aiCall(prompt, 1200, function(text){
-      try{
-        // Strip markdown, find the JSON object
-        var clean = text.split('```json').join('').split('```').join('').trim();
-        var start = clean.indexOf('{');
-        var end = clean.lastIndexOf('}');
-        if(start===-1||end===-1) throw new Error('no JSON');
-        var d = JSON.parse(clean.slice(start, end+1));
-        renderStrategy(d, sym, price, riskAmt);
-      }catch(e){
-        // Show raw AI response if parse fails
-        out.innerHTML='<div class="ai-box">'+text.replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')+'</div>';
-      }
-      btn.disabled=false; btn.textContent='⚡ Build Strategy';
-    }, function(err){
-      out.innerHTML='<div class="err-box">Error: '+err+'</div>';
-      btn.disabled=false; btn.textContent='⚡ Build Strategy';
-    });
-  });
-}
-
-function clearStrategy(){
-  document.getElementById('st-out').innerHTML='';
-  var fc=document.getElementById('st-form-card');
-  if(fc) fc.style.display='block';
-}
-function renderStrategy(d, sym, price, riskAmt){
-  var out = document.getElementById('st-out');
-  // Sanitize AI numbers — cap absurd values
-  (d.strategies||[]).forEach(function(s){
-    s.est_cost = Math.min(Math.abs(parseFloat(s.est_cost)||0), riskAmt*3);
-    s.max_loss = Math.min(Math.abs(parseFloat(s.max_loss)||0), riskAmt*3);
-    s.max_profit = s.max_profit===99999||s.max_profit>riskAmt*20 ? s.max_loss*2 : Math.abs(parseFloat(s.max_profit)||0);
-    s.win_rate_pct = Math.min(Math.max(parseFloat(s.win_rate_pct)||45, 10), 90);
-    s.est_cost = s.est_cost < 0 ? Math.abs(s.est_cost) : s.est_cost;
-  });
-  var html = '<div class="card fade-in">'
-    + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'
-    + '<div class="sec-lbl" style="margin-bottom:0">Regime: <span style="color:var(--accent);text-transform:capitalize">'+d.regime.replace(/_/g,' ')+'</span></div>'
-    + '<button onclick="clearStrategy()" class="btn-ghost" style="font-size:10px;padding:4px 10px">&#8635; Rebuild</button>'
-    + '</div>'
-    + '<div style="font-size:11px;color:var(--dim);margin-bottom:12px;line-height:1.6">'+d.macro_note+'</div>'
-    + '<div class="strat-grid">';
-  (d.strategies||[]).forEach(function(s, i){
-    var best = i === (d.top_pick||0);
-    var pnlColor = s.max_profit>0?'var(--green)':'var(--dim)';
-    html += '<div class="strat-card'+(best?' best':'')+'">'
-      + '<div class="strat-name">'+s.name+'</div>'
-      + '<div class="strat-risk" style="color:var(--accent)">$'+s.est_cost+' risk · '+s.win_rate_pct+'% win rate</div>'
-      + '<div class="strat-detail">'+s.legs+'<br><br>'
-      + '✓ '+s.best_for+'<br>'
-      + '⚠ '+s.risk+'</div>'
-      + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:10px;font-size:10px">'
-      + '<div style="color:var(--green);font-weight:800">Max profit<br>$'+s.max_profit+'</div>'
-      + '<div style="color:var(--red);font-weight:800">Max loss<br>$'+s.max_loss+'</div>'
-      + '</div>'
-      + '</div>';
-  });
-  html += '</div></div>';
-  out.innerHTML = html;
 }
 
 // ═══════════════════════════════════════════════════════
