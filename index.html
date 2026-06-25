@@ -412,8 +412,57 @@ body{padding-top:env(safe-area-inset-top)}
   <!-- LANDING VIEW -->
   <div id="landing-view">
 
-    <!-- Intro blurb -->
-    <div style="padding:12px 14px;background:var(--s1);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:0 10px 10px 0">
+    <!-- Market Mood Card -->
+    <div style="background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px">
+      <div class="sec-lbl" style="margin-bottom:10px">Market Mood</div>
+      <div id="mood-content">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+          <div id="mood-icon" style="font-size:32px;line-height:1">—</div>
+          <div>
+            <div id="mood-label" style="font-size:16px;font-weight:900;color:var(--text)">Loading…</div>
+            <div id="mood-sub" style="font-size:11px;color:var(--muted);margin-top:2px;font-weight:600"></div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div style="background:var(--s2);border-radius:9px;padding:10px">
+            <div style="font-size:8px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">VIX</div>
+            <div id="mood-vix" style="font-size:18px;font-weight:900;color:var(--text)">--</div>
+            <div id="mood-vix-txt" style="font-size:9px;color:var(--muted);margin-top:2px;font-weight:600"></div>
+          </div>
+          <div style="background:var(--s2);border-radius:9px;padding:10px">
+            <div style="font-size:8px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">Trend</div>
+            <div id="mood-trend" style="font-size:18px;font-weight:900;color:var(--text)">--</div>
+            <div id="mood-trend-txt" style="font-size:9px;color:var(--muted);margin-top:2px;font-weight:600"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Options Strategy Cheatsheet -->
+    <div style="background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px">
+      <div class="sec-lbl" style="margin-bottom:10px">Strategy Guide</div>
+      <div style="display:flex;flex-direction:column;gap:7px">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 10px;background:var(--gbg);border:1px solid var(--gbd);border-radius:8px">
+          <div style="font-size:11px;font-weight:800;color:var(--green)">📈 Bull Call Spread</div>
+          <div style="font-size:10px;color:var(--dim);font-weight:600">Low VIX · Bullish</div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 10px;background:var(--rbg);border:1px solid var(--rbd);border-radius:8px">
+          <div style="font-size:11px;font-weight:800;color:var(--red)">📉 Bear Put Spread</div>
+          <div style="font-size:10px;color:var(--dim);font-weight:600">Low VIX · Bearish</div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 10px;background:var(--abg);border:1px solid var(--abd);border-radius:8px">
+          <div style="font-size:11px;font-weight:800;color:var(--amber)">⚡ Straddle</div>
+          <div style="font-size:10px;color:var(--dim);font-weight:600">High VIX · Any dir</div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 10px;background:var(--bbg);border:1px solid var(--bbd);border-radius:8px">
+          <div style="font-size:11px;font-weight:800;color:var(--blue)">🎯 Iron Condor</div>
+          <div style="font-size:10px;color:var(--dim);font-weight:600">High VIX · Neutral</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tip -->
+    <div style="padding:12px 14px;background:var(--s1);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:0 10px 10px 0;margin-bottom:10px">
       <div style="font-size:12px;color:var(--dim);line-height:1.8">
         <strong style="color:var(--text);font-size:13px">StrikeEdge</strong> gives you an AI-powered edge on every options trade.
         Type a ticker and hit <strong style="color:var(--accent)">+</strong> to add it, set your capital, risk %, and DTE — then hit <strong style="color:var(--accent)">GO</strong>.
@@ -632,6 +681,9 @@ function appInit(){
   try{ positions = JSON.parse(localStorage.getItem('se_positions')||'[]'); }catch(e){ positions=[]; }
   renderPortfolio();
   initTickerList();
+  // Update mood panel after a short delay to let prices populate
+  setTimeout(updateMoodPanel, 1500);
+  setTimeout(updateMoodPanel, 4000);
 }
 
 // ── SETTINGS ──
@@ -1462,6 +1514,65 @@ function bsC(S,K,T,v){ if(T<=0)return Math.max(0,S-K); var d1=(Math.log(S/K)+(0.
 function bsP(S,K,T,v){ if(T<=0)return Math.max(0,K-S); var d1=(Math.log(S/K)+(0.5*v*v)*T)/(v*Math.sqrt(T)),d2=d1-v*Math.sqrt(T); return K*N(-d2)-S*N(-d1); }
 function N(x){ return 0.5*(1+erf(x/Math.SQRT2)); }
 function erf(x){ var t=1/(1+0.3275911*Math.abs(x)),p=t*(0.254829592+t*(-0.284496736+t*(1.421413741+t*(-1.453152027+t*1.061405429)))); var r=1-p*Math.exp(-x*x); return x<0?-r:r; }
+
+// ── QUICK PICK ──
+function quickPick(sym){
+  // Add to ticker list and select it
+  if(!tickerList.includes(sym)) tickerList.push(sym);
+  activeTicker = sym;
+  renderTickers();
+  runFromList();
+}
+
+// ── MARKET MOOD ──
+function updateMoodPanel(){
+  var vixEl = document.getElementById('m-vix');
+  var vix = vixEl ? parseFloat(vixEl.textContent) : NaN;
+
+  var spyChgEl = document.getElementById('spy-chg');
+  var spyChgTxt = spyChgEl ? spyChgEl.textContent : '';
+  var spyUp = spyChgTxt.indexOf('+') === 0;
+  var spyDn = spyChgTxt.indexOf('-') === 0;
+
+  var moodIcon = document.getElementById('mood-icon');
+  var moodLabel = document.getElementById('mood-label');
+  var moodSub = document.getElementById('mood-sub');
+  var moodVix = document.getElementById('mood-vix');
+  var moodVixTxt = document.getElementById('mood-vix-txt');
+  var moodTrend = document.getElementById('mood-trend');
+  var moodTrendTxt = document.getElementById('mood-trend-txt');
+
+  if(!moodIcon) return;
+
+  if(!isNaN(vix)){
+    moodVix.textContent = vix.toFixed(1);
+    if(vix < 15){ moodVixTxt.textContent = 'Very calm'; moodVixTxt.style.color='var(--green)'; }
+    else if(vix < 20){ moodVixTxt.textContent = 'Calm'; moodVixTxt.style.color='var(--green)'; }
+    else if(vix < 25){ moodVixTxt.textContent = 'Elevated'; moodVixTxt.style.color='var(--amber)'; }
+    else if(vix < 35){ moodVixTxt.textContent = 'High fear'; moodVixTxt.style.color='var(--red)'; }
+    else { moodVixTxt.textContent = 'Extreme fear'; moodVixTxt.style.color='var(--red)'; }
+
+    var mood, icon, sub;
+    if(vix < 20 && spyUp){ mood='Risk On'; icon='🟢'; sub='Spreads & calls favored'; }
+    else if(vix < 20 && spyDn){ mood='Pullback'; icon='🟡'; sub='Watch for bounce plays'; }
+    else if(vix >= 20 && vix < 30){ mood='Cautious'; icon='🟠'; sub='Straddles gaining edge'; }
+    else if(vix >= 30){ mood='High Vol'; icon='🔴'; sub='Condors & premium selling'; }
+    else { mood='Neutral'; icon='⚪'; sub='Await clearer signal'; }
+
+    moodIcon.textContent = icon;
+    moodLabel.textContent = mood;
+    moodLabel.style.color = vix < 20 ? 'var(--green)' : vix < 30 ? 'var(--amber)' : 'var(--red)';
+    moodSub.textContent = sub;
+  } else {
+    moodIcon.textContent = '⏳';
+    moodLabel.textContent = 'Awaiting data';
+    moodSub.textContent = 'Add API key to load live market data';
+  }
+
+  if(spyUp){ moodTrend.textContent='↑ Up'; moodTrend.style.color='var(--green)'; moodTrendTxt.textContent='SPY positive'; }
+  else if(spyDn){ moodTrend.textContent='↓ Down'; moodTrend.style.color='var(--red)'; moodTrendTxt.textContent='SPY negative'; }
+  else { moodTrend.textContent='→ Flat'; moodTrend.style.color='var(--dim)'; moodTrendTxt.textContent='SPY unchanged'; }
+}
 
 // ── FORCE SW CACHE BUST ──
 if('serviceWorker' in navigator){
