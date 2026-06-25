@@ -331,7 +331,7 @@ body{padding-top:env(safe-area-inset-top)}
 
   <!-- TAB BAR -->
   <div id="tab-bar">
-    <button class="tab on" onclick="showTab(0)">Signal</button>
+    <button class="tab on" onclick="showTab(0);goHome()">Analyze</button>
     <button class="tab" onclick="showTab(1)">Strategy</button>
     <button class="tab" onclick="showTab(2)">Backtest</button>
     <button class="tab" onclick="showTab(3)">Chart</button>
@@ -340,32 +340,45 @@ body{padding-top:env(safe-area-inset-top)}
   </div>
 </div>
 
-<!-- ═══ PANE 0: SIGNAL ═══ -->
+<!-- ═══ PANE 0: SIGNAL + STRATEGY (combined) ═══ -->
 <div class="pane on" id="pane0">
-  <!-- Ticker selector -->
-  <div class="ticker-row">
-    <button class="ticker-pill on" id="pill-SPY" onclick="loadSignal('SPY')">SPY</button>
-    <button class="ticker-pill" id="pill-QQQ" onclick="loadSignal('QQQ')">QQQ</button>
-    <div class="ticker-search">
-      <input class="ticker-inp" id="sig-inp" placeholder="AAPL, NVDA..." maxlength="6"
-        oninput="this.value=this.value.toUpperCase()"
-        onkeydown="if(event.key==='Enter')loadSignal(this.value.trim())">
-      <button class="ticker-go" onclick="loadSignal(document.getElementById('sig-inp').value.trim())">Go</button>
+
+  <!-- LANDING VIEW -->
+  <div id="landing-view">
+    <div class="ticker-row">
+      <button class="ticker-pill on" id="pill-SPY" onclick="selectTicker('SPY')">SPY</button>
+      <button class="ticker-pill" id="pill-QQQ" onclick="selectTicker('QQQ')">QQQ</button>
+      <div class="ticker-search">
+        <input class="ticker-inp" id="sig-inp" placeholder="AAPL, NVDA..." maxlength="6"
+          oninput="this.value=this.value.toUpperCase()"
+          onkeydown="if(event.key==='Enter')analyzeCustom()">
+        <button class="ticker-go" onclick="analyzeCustom()">Go</button>
+      </div>
+    </div>
+    <button class="btn-primary" id="analyze-btn" onclick="runAnalysis()">⚡ Analyze</button>
+    <div style="margin-top:18px;padding:14px;background:var(--s1);border:1px solid var(--border);border-radius:12px">
+      <div style="font-size:12px;color:var(--dim);line-height:1.8">
+        <strong style="color:var(--text);font-size:13px">StrikeEdge</strong> gives you an AI-powered edge on every options trade.
+        Select <span style="color:var(--accent);font-weight:800">SPY</span> or <span style="color:var(--amber);font-weight:800">QQQ</span> — or type any ticker — then hit <strong style="color:var(--text)">Analyze</strong> to get a live market regime read, a directional signal with technicals, and the best-fit options strategy with ranked alternatives. All in one place, in seconds.
+        Use the other tabs to backtest strategies, view price charts with momentum indicators, track your open positions, and run P&amp;L scenario analysis with Black-Scholes modeling.
+      </div>
     </div>
   </div>
 
-  <!-- Signal output -->
-  <div id="sig-out">
-    <div class="empty">
-      <div class="empty-ico">&#9889;</div>
-      <div class="empty-title">Select a ticker</div>
-      <div class="empty-sub">Loading SPY signal...</div>
+  <!-- RESULTS VIEW (hidden until analyze) -->
+  <div id="results-view" style="display:none">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <button onclick="goHome()" style="background:var(--s3);border:1px solid var(--border2);color:var(--dim);border-radius:8px;padding:7px 14px;font-size:12px;font-weight:800;cursor:pointer">← Back</button>
+      <div style="font-size:11px;color:var(--muted);font-weight:700" id="results-ticker-lbl"></div>
     </div>
+    <div id="sig-out"></div>
+    <div id="strat-out" style="margin-top:8px"></div>
   </div>
+
 </div>
-<!-- ═══ PANE 1: STRATEGY ═══ -->
+<!-- ═══ PANE 1: STRATEGY (kept as tab for direct access with settings) ═══ -->
 <div class="pane" id="pane1">
-  <div id="st-out"></div>
+  <div class="sec-lbl">Strategy Builder</div>
   <div class="card" id="st-form-card">
     <div class="grid2">
       <div class="field">
@@ -395,6 +408,7 @@ body{padding-top:env(safe-area-inset-top)}
     </div>
     <button class="btn-primary" id="st-btn" onclick="runStrategy()">⚡ Build Strategy</button>
   </div>
+  <div id="st-out" style="margin-top:8px"></div>
 </div>
 
 <!-- ═══ PANE 2: BACKTEST ═══ -->
@@ -584,11 +598,9 @@ var priceCache = {};
   CLAUDE_KEY = localStorage.getItem('se_claude') || '';
   TD_KEY = localStorage.getItem('se_td') || '';
   updateKeysBtn();
-  initPriceCards(); // show placeholder instantly
-  loadPrices();     // queued: call 1 & 2
-  loadMacro();      // queued: calls 3-6, spaced 8s apart
-  // Auto-load SPY signal right away — uses cachedFetch (immediate)
-  if(TD_KEY) loadSignal('SPY');
+  initPriceCards();
+  loadPrices();
+  loadMacro();
   // Load portfolio
   try{ positions = JSON.parse(localStorage.getItem('se_positions')||'[]'); }catch(e){ positions=[]; }
   renderPortfolio();
@@ -740,86 +752,126 @@ function loadMacro(){
 }
 
 // ═══════════════════════════════════════════════════════
-//  SIGNAL TAB
+//  ANALYZE TAB — combined signal + strategy
 // ═══════════════════════════════════════════════════════
-function loadSignal(sym){
-  if(!sym) return;
-  sym = sym.toUpperCase();
-  sigTicker = sym;
-  // Update pills
+var currentAnalyzeTicker = 'SPY';
+
+function selectTicker(sym){
+  currentAnalyzeTicker = sym;
   ['SPY','QQQ'].forEach(function(s){
     var p = document.getElementById('pill-'+s);
     if(p) p.className = 'ticker-pill'+(s===sym?' on':'');
   });
-  var out = document.getElementById('sig-out');
-  out.innerHTML = '<div class="ai-loading"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span style="margin-left:6px;color:var(--muted)">Fetching '+sym+' data…</span></div>';
+  document.getElementById('sig-inp').value = '';
+}
+
+function analyzeCustom(){
+  var v = document.getElementById('sig-inp').value.trim().toUpperCase();
+  if(!v) return;
+  currentAnalyzeTicker = v;
+  ['SPY','QQQ'].forEach(function(s){
+    var p = document.getElementById('pill-'+s);
+    if(p) p.className = 'ticker-pill';
+  });
+  runAnalysis();
+}
+
+function goHome(){
+  document.getElementById('landing-view').style.display = 'block';
+  document.getElementById('results-view').style.display = 'none';
+}
+
+function runAnalysis(){
+  var sym = currentAnalyzeTicker;
+  if(!sym) return;
+  // Switch to results view
+  document.getElementById('landing-view').style.display = 'none';
+  document.getElementById('results-view').style.display = 'block';
+  document.getElementById('results-ticker-lbl').textContent = 'Analyzing ' + sym + '…';
+
+  var sigOut = document.getElementById('sig-out');
+  var stratOut = document.getElementById('strat-out');
+  sigOut.innerHTML = '<div class="ai-loading"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span style="margin-left:6px;color:var(--muted)">Fetching '+sym+' data…</span></div>';
+  stratOut.innerHTML = '';
 
   if(!TD_KEY){
-    out.innerHTML = '<div class="err-box">⚠️ Add Twelve Data key via ⚙️ Keys to load real data.</div>';
+    sigOut.innerHTML = '<div class="err-box">⚠️ Add Twelve Data key via ⚙️ Keys to load real data.</div>';
     return;
   }
 
-  // Fetch quote + 30d history in parallel
   Promise.all([
     cachedFetch('/quote?symbol='+sym, 60000),
-    cachedFetch('/time_series?symbol='+sym+'&interval=1day&outputsize=35', 300000),
-    Promise.resolve(null) // skip options call — saves 1 API credit
+    cachedFetch('/time_series?symbol='+sym+'&interval=1day&outputsize=35', 300000)
   ])
   .then(function(results){
-    var q = results[0], hist = results[1], opts = results[2];
+    var q = results[0], hist = results[1];
     var price = parseFloat(q.close||q.price||0);
     var chg = parseFloat(q.percent_change||0);
-    var chgAbs = parseFloat(q.change||0);
-
-    // Cache
     priceCache[sym] = price;
 
-    // Compute technicals from history
     var closes = [];
     if(hist && hist.values) closes = hist.values.map(function(v){ return parseFloat(v.close); }).reverse();
 
     var rsi14 = closes.length>=15 ? calcRSI(closes, 14) : null;
     var ma20 = closes.length>=20 ? avg(closes.slice(-20)) : null;
-    var ma50 = closes.length>=50 ? avg(closes.slice(-50)) : null;
     var rv30 = closes.length>=22 ? calcRV(closes.slice(-22)) : null;
-
-    // Get IV from options or estimate
-    var iv = null;
-    if(opts && opts.options && opts.options.length){
-      var atm = opts.options.filter(function(o){ return o.type==='call' && Math.abs(o.strike-price)<price*0.03; });
-      if(atm.length) iv = parseFloat(atm[0].impliedVolatility||0)*100;
-    }
-    if(!iv || iv===0) iv = rv30 ? rv30 * 1.15 : null; // estimate IV as 1.15x RV if no chain
-
+    var iv = rv30 ? rv30 * 1.15 : 18;
     var vix = parseFloat(document.getElementById('m-vix').textContent||0);
 
-    // Build signal prompt
+    document.getElementById('results-ticker-lbl').textContent = sym + ' · $' + price.toFixed(2) + ' (' + (chg>=0?'+':'') + chg.toFixed(2) + '%)';
+
     if(!CLAUDE_KEY){
-      // Fallback: rule-based signal
-      renderSignalRules(sym, price, chg, rsi14, ma20, rv30, iv, vix);
+      // Rule-based fallback for both signal and strategy
+      var d = buildRuleSignal(sym, price, chg, rsi14, ma20, rv30, iv, vix);
+      renderSignalCard(sym, price, chg, rsi14, ma20, rv30, iv, vix, d);
+      renderRuleFallbackStrategy(sym, price, vix, d);
       return;
     }
 
-    // AI signal
-    var prompt = 'You are a professional options trader. Analyze this data and return ONLY valid JSON.\n\n'
+    // Single AI call: signal + strategies together
+    sigOut.innerHTML = '<div class="ai-loading"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span style="margin-left:6px;color:var(--muted)">AI analysis running…</span></div>';
+
+    var capital = parseInt(localStorage.getItem('se_capital')||'10000');
+    var riskPct = parseInt(localStorage.getItem('se_risk')||'5');
+    var riskAmt = capital * riskPct / 100;
+    var dte = 7;
+
+    var prompt = 'You are a professional options trader. Analyze this setup and return ONLY valid JSON with no text before or after.\n\n'
       + 'Ticker: '+sym+'\n'
       + 'Price: $'+price.toFixed(2)+' ('+( chg>=0?'+':'')+chg.toFixed(2)+'% today)\n'
       + 'RSI-14: '+(rsi14?rsi14.toFixed(1):'N/A')+'\n'
       + '20-day MA: '+(ma20?'$'+ma20.toFixed(2)+' (price is '+(price>ma20?'ABOVE':'BELOW')+')':'N/A')+'\n'
       + '30-day Realized Vol: '+(rv30?rv30.toFixed(1)+'%':'N/A')+'\n'
       + 'Est IV: '+(iv?iv.toFixed(1)+'%':'N/A')+'\n'
-      + 'VIX: '+(vix||'N/A')+'\n\n'
-      + 'Return ONLY a JSON object, no text before or after:\n'
-      + '{"signal":"BULLISH","confidence":"High","action":"BUY CALL","reason":"explanation here","iv_regime":"Fair","key_level":550.0,"stop":540.0}';
+      + 'VIX: '+(vix||'N/A')+'\n'
+      + 'Capital: $'+capital+' | Risk amt: $'+riskAmt.toFixed(0)+' | DTE: '+dte+' days\n\n'
+      + 'Return ONLY this JSON structure:\n'
+      + '{"signal":"BULLISH","confidence":"High","action":"BUY CALL","reason":"2-3 sentence explanation","iv_regime":"Fair","key_level":'+Math.round(price)+'.0,"stop":'+(Math.round(price*0.98))+'.0,'
+      + '"regime":"neutral_to_bearish","macro_note":"one sentence on market context","top_pick":0,'
+      + '"strategies":['
+      + '{"name":"Bear Put Spread","legs":"Buy 1 '+sym+' '+Math.round(price)+' Put '+dte+'DTE, Sell 1 '+sym+' '+Math.round(price*0.97)+' Put '+dte+'DTE","est_cost":'+Math.round(riskAmt*0.5)+',"max_profit":'+Math.round(riskAmt*1.5)+',"max_loss":'+Math.round(riskAmt*0.5)+',"win_rate_pct":42,"best_for":"Moderate downside","risk":"Loses full premium if above strike at expiry"},'
+      + '{"name":"Iron Condor","legs":"Sell 1 '+sym+' '+Math.round(price*0.97)+' Put, Buy 1 '+sym+' '+Math.round(price*0.95)+' Put, Sell 1 '+sym+' '+Math.round(price*1.02)+' Call, Buy 1 '+sym+' '+Math.round(price*1.04)+' Call — all '+dte+'DTE","est_cost":'+Math.round(riskAmt*0.6)+',"max_profit":'+Math.round(riskAmt*0.7)+',"max_loss":'+Math.round(riskAmt*0.6)+',"win_rate_pct":58,"best_for":"Range-bound market","risk":"Sharp directional move"},\n'
+      + '{"name":"Bull Call Spread","legs":"Buy 1 '+sym+' '+Math.round(price)+' Call '+dte+'DTE, Sell 1 '+sym+' '+Math.round(price*1.02)+' Call '+dte+'DTE","est_cost":'+Math.round(riskAmt*0.4)+',"max_profit":'+Math.round(riskAmt*1.2)+',"max_loss":'+Math.round(riskAmt*0.4)+',"win_rate_pct":38,"best_for":"Moderate upside bounce","risk":"Loses full premium if below strike"},'
+      + '{"name":"Long Straddle","legs":"Buy 1 '+sym+' '+Math.round(price)+' Call '+dte+'DTE, Buy 1 '+sym+' '+Math.round(price)+' Put '+dte+'DTE","est_cost":'+Math.round(riskAmt*0.8)+',"max_profit":'+Math.round(riskAmt*2.5)+',"max_loss":'+Math.round(riskAmt*0.8)+',"win_rate_pct":35,"best_for":"Big move either direction","risk":"Rapid theta decay if price stays flat"}'
+      + ']}';
 
-    aiCall(prompt, 600, function(text){
+    aiCall(prompt, 1400, function(text){
       try{
-        var cl=text.split('```json').join('').split('```').join('').trim();var st=cl.indexOf('{'),en=cl.lastIndexOf('}');var d=JSON.parse(cl.slice(st,en+1));renderSignalAI(sym, price, chg, rsi14, ma20, rv30, iv, vix, d);
-      }catch(e){
-        renderSignalRules(sym, price, chg, rsi14, ma20, rv30, iv, vix);
+        var cl = text.split('```json').join('').split('```').join('').trim();
+        var st = cl.indexOf('{'), en = cl.lastIndexOf('}');
+        var d = JSON.parse(cl.slice(st, en+1));
+        renderSignalCard(sym, price, chg, rsi14, ma20, rv30, iv, vix, d);
+        renderStrategyCards(d, sym, price, riskAmt);
+      } catch(e){
+        // Fallback
+        var d = buildRuleSignal(sym, price, chg, rsi14, ma20, rv30, iv, vix);
+        renderSignalCard(sym, price, chg, rsi14, ma20, rv30, iv, vix, d);
+        renderRuleFallbackStrategy(sym, price, vix, d);
       }
     }, function(err){
-      renderSignalRules(sym, price, chg, rsi14, ma20, rv30, iv, vix);
+      var d = buildRuleSignal(sym, price, chg, rsi14, ma20, rv30, iv, vix);
+      renderSignalCard(sym, price, chg, rsi14, ma20, rv30, iv, vix, d);
+      renderRuleFallbackStrategy(sym, price, vix, d);
     });
   })
   .catch(function(e){
@@ -827,63 +879,101 @@ function loadSignal(sym){
   });
 }
 
-function renderSignalAI(sym, price, chg, rsi, ma20, rv, iv, vix, d){
+function buildRuleSignal(sym, price, chg, rsi, ma20, rv, iv, vix){
+  var bull=0, bear=0;
+  if(chg>1) bull+=2; else if(chg>0.3) bull+=1; else if(chg<-1) bear+=2; else if(chg<-0.3) bear+=1;
+  if(rsi){ if(rsi>60) bull+=1; if(rsi<40) bear+=1; if(rsi>75) bear+=1; if(rsi<25) bull+=1; }
+  if(ma20){ if(price>ma20) bull+=1; else bear+=1; }
+  if(bull>=3) return {signal:'BULLISH', action:'BUY CALL', confidence:'Medium', reason:'Price momentum positive, holding above key moving averages.', iv_regime:'Fair', key_level:Math.round(price), stop:Math.round(price*0.98), regime:'trending_up', macro_note:'Bullish momentum intact.'};
+  if(bear>=3) return {signal:'BEARISH', action:'BUY PUT', confidence:'Medium', reason:'Price weakness, trading below key levels. Bearish momentum building.', iv_regime:'Fair', key_level:Math.round(price), stop:Math.round(price*1.02), regime:'trending_down', macro_note:'Bearish pressure building.'};
+  return {signal:'NEUTRAL', action:'SELL VOL', confidence:'Low', reason:'Mixed signals — no strong directional edge. Elevated vol may favor premium collecting.', iv_regime:'Fair', key_level:Math.round(price), stop:Math.round(price*0.97), regime:'range_bound', macro_note:'Choppy, range-bound conditions.'};
+}
+
+function renderSignalCard(sym, price, chg, rsi, ma20, rv, iv, vix, d){
   var cls = d.signal==='BULLISH'?'bull':d.signal==='BEARISH'?'bear':'neutral';
   var color = cls==='bull'?'var(--green)':cls==='bear'?'var(--red)':'var(--amber)';
-  var out = document.getElementById('sig-out');
-  out.innerHTML = '';
-  out.className = 'fade-in';
-
   var ivSpread = iv && rv ? (iv - rv).toFixed(1) : null;
   var ivReg = d.iv_regime || (ivSpread>3?'Rich':ivSpread<-3?'Cheap':'Fair');
-
+  var out = document.getElementById('sig-out');
   out.innerHTML =
-    '<div class="signal-banner '+cls+'">' +
+    '<div class="signal-banner '+cls+' fade-in">' +
       '<div class="sig-label">'+sym+' Signal · '+d.confidence+' Confidence</div>' +
       '<div class="sig-action" style="color:'+color+'">'+d.action+'</div>' +
       '<div class="sig-conf">'+d.signal+' · IV '+ivReg+'</div>' +
       '<div class="sig-reason">'+d.reason+'</div>' +
     '</div>' +
     '<div class="stat-grid">' +
-      statBox('Price', '$'+price.toFixed(2), chg>=0?'+':'' + chg.toFixed(2)+'%', chg>=0?'var(--green)':'var(--red)') +
+      statBox('Price', '$'+price.toFixed(2), (chg>=0?'+':'')+chg.toFixed(2)+'%', chg>=0?'var(--green)':'var(--red)') +
       statBox('RSI-14', rsi?rsi.toFixed(0):'—', rsi>70?'Overbought':rsi<30?'Oversold':'Neutral', rsi>70?'var(--red)':rsi<30?'var(--green)':'var(--dim)') +
       statBox('vs 20MA', ma20?((price>ma20?'+':'')+((price-ma20)/ma20*100).toFixed(1)+'%'):'—', price>ma20?'Above':'Below', price>ma20?'var(--green)':'var(--red)') +
     '</div>' +
-    '<div class="stat-grid">' +
-      statBox('30d RV', rv?rv.toFixed(1)+'%':'—', 'Realized vol', 'var(--dim)') +
-      statBox('Est IV', iv?iv.toFixed(1)+'%':'—', 'IV regime: '+ivReg, ivReg==='Rich'?'var(--red)':ivReg==='Cheap'?'var(--green)':'var(--amber)') +
-      statBox('VIX', vix?vix.toFixed(1):'—', vix>25?'Elevated':vix>15?'Normal':'Low', vix>25?'var(--red)':'var(--dim)') +
-    '</div>' +
-    (d.key_level ? '<div class="note-box">📍 Key level: $'+d.key_level.toFixed(2)+(d.stop?' · Stop: $'+d.stop.toFixed(2):'')+'</div>' : '') +
-    '<button class="btn-primary" style="margin-top:4px" onclick="runStrategy_fromSig(\''+sym+'\')">→ Build Strategy for '+sym+'</button>';
+    (d.key_level ? '<div class="note-box">📍 Key level: $'+d.key_level+(d.stop?' · Stop: $'+d.stop:'')+'</div>' : '');
 }
 
-function renderSignalRules(sym, price, chg, rsi, ma20, rv, iv, vix){
-  var bull=0, bear=0;
-  if(chg>1) bull+=2; else if(chg>0.3) bull+=1; else if(chg<-1) bear+=2; else if(chg<-0.3) bear+=1;
-  if(rsi){ if(rsi>60) bull+=1; if(rsi<40) bear+=1; if(rsi>75) bear+=1; if(rsi<25) bull+=1; }
-  if(ma20){ if(price>ma20) bull+=1; else bear+=1; }
-  var signal, action, cls, color;
-  if(bull>=3){ signal='BULLISH'; action='BUY CALL'; cls='bull'; color='var(--green)'; }
-  else if(bear>=3){ signal='BEARISH'; action='BUY PUT'; cls='bear'; color='var(--red)'; }
-  else { signal='NEUTRAL'; action='SELL VOL'; cls='neutral'; color='var(--amber)'; }
-  var reason = signal==='BULLISH'?'Price momentum positive, holding above key moving averages. RSI not yet overbought.'
-    :signal==='BEARISH'?'Price weakness, trading below key levels. Bearish momentum building.'
-    :'Mixed signals — no strong directional edge. Elevated vol favors premium selling.';
-  renderSignalAI(sym, price, chg, rsi, ma20, rv, iv, vix,
-    {signal:signal, action:action, confidence:'Medium', reason:reason, iv_regime:iv&&rv&&iv>rv+3?'Rich':iv&&rv&&iv<rv-3?'Cheap':'Fair'});
+function renderStrategyCards(d, sym, price, riskAmt){
+  var out = document.getElementById('strat-out');
+  // Sanitize numbers
+  (d.strategies||[]).forEach(function(s){
+    s.est_cost = Math.min(Math.abs(parseFloat(s.est_cost)||0), riskAmt*3);
+    s.max_loss = Math.min(Math.abs(parseFloat(s.max_loss)||0), riskAmt*3);
+    s.max_profit = s.max_profit===99999||s.max_profit>riskAmt*20 ? s.max_loss*2 : Math.abs(parseFloat(s.max_profit)||0);
+    s.win_rate_pct = Math.min(Math.max(parseFloat(s.win_rate_pct)||45, 10), 90);
+    if(s.est_cost<0) s.est_cost = Math.abs(s.est_cost);
+  });
+
+  var html = '<div class="card fade-in">'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
+    + '<div class="sec-lbl" style="margin-bottom:0">Regime: <span style="color:var(--accent);text-transform:capitalize">'+(d.regime||'').replace(/_/g,' ')+'</span></div>'
+    + '<button onclick="runAnalysis()" class="btn-ghost" style="font-size:10px;padding:4px 10px">↻ Rebuild</button>'
+    + '</div>'
+    + '<div style="font-size:11px;color:var(--dim);margin-bottom:12px;line-height:1.6">'+(d.macro_note||'')+'</div>'
+    + '<div class="strat-grid">';
+
+  (d.strategies||[]).forEach(function(s, i){
+    var best = i === (d.top_pick||0);
+    html += '<div class="strat-card'+(best?' best':'')+'">'
+      + '<div class="strat-name">'+s.name+'</div>'
+      + '<div class="strat-risk" style="color:var(--accent)">$'+Math.round(s.est_cost)+' risk · '+Math.round(s.win_rate_pct)+'% win rate</div>'
+      + '<div class="strat-detail">'+s.legs+'<br><br>'
+      + '✓ '+s.best_for+'<br>'
+      + '⚠ '+s.risk+'</div>'
+      + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:10px;font-size:10px">'
+      + '<div style="color:var(--green);font-weight:800">Max profit<br>$'+Math.round(s.max_profit)+'</div>'
+      + '<div style="color:var(--red);font-weight:800">Max loss<br>$'+Math.round(s.max_loss)+'</div>'
+      + '</div>'
+      + '</div>';
+  });
+
+  html += '</div></div>';
+  out.innerHTML = html;
+}
+
+function renderRuleFallbackStrategy(sym, price, vix, d){
+  // Simple rule-based fallback strategies when no Claude key
+  var strategies = d.signal==='BULLISH'
+    ? [{name:'Bull Call Spread',legs:'Buy 1 '+sym+' '+Math.round(price)+' Call 7DTE, Sell 1 '+sym+' '+Math.round(price*1.02)+' Call 7DTE',est_cost:200,max_profit:300,max_loss:200,win_rate_pct:40,best_for:'Moderate upside continuation',risk:'Loses full premium if price stalls'},
+       {name:'Long Call',legs:'Buy 1 '+sym+' '+Math.round(price)+' Call 7DTE',est_cost:350,max_profit:999,max_loss:350,win_rate_pct:35,best_for:'Strong breakout move expected',risk:'High theta decay cost'}]
+    : d.signal==='BEARISH'
+    ? [{name:'Bear Put Spread',legs:'Buy 1 '+sym+' '+Math.round(price)+' Put 7DTE, Sell 1 '+sym+' '+Math.round(price*0.97)+' Put 7DTE',est_cost:200,max_profit:300,max_loss:200,win_rate_pct:42,best_for:'Moderate downside continuation',risk:'Loses full premium if price rallies'},
+       {name:'Long Put',legs:'Buy 1 '+sym+' '+Math.round(price)+' Put 7DTE',est_cost:350,max_profit:999,max_loss:350,win_rate_pct:37,best_for:'Sharp selloff expected',risk:'High theta decay cost'}]
+    : [{name:'Iron Condor',legs:'Sell '+sym+' strangle, buy wings — 7DTE',est_cost:300,max_profit:200,max_loss:300,win_rate_pct:55,best_for:'Range-bound conditions',risk:'Sharp directional move beyond breakevens'},
+       {name:'Long Straddle',legs:'Buy 1 '+sym+' '+Math.round(price)+' Call + Put 7DTE',est_cost:400,max_profit:999,max_loss:400,win_rate_pct:35,best_for:'Big move in either direction',risk:'Theta decay if price stays flat'}];
+  renderStrategyCards({regime: d.regime, macro_note: d.macro_note||'Rule-based analysis (add Claude key for AI analysis)', top_pick:0, strategies:strategies}, sym, price, 500);
+}
+
+// Keep loadSignal as alias for compatibility
+function loadSignal(sym){ selectTicker(sym); runAnalysis(); }
+
+function runStrategy_fromSig(sym){
+  document.getElementById('st-ticker').value = sym;
+  showTab(1);
+  runStrategy();
 }
 
 function statBox(lbl, val, sub, color){
   return '<div class="stat-box"><div class="stat-lbl">'+lbl+'</div>'
     +'<div class="stat-val" style="color:'+(color||'var(--text)')+'">'+val+'</div>'
     +'<div class="stat-sub">'+sub+'</div></div>';
-}
-
-function runStrategy_fromSig(sym){
-  document.getElementById('st-ticker').value = sym;
-  showTab(1);
-  runStrategy();
 }
 
 // ═══════════════════════════════════════════════════════
@@ -893,6 +983,9 @@ function runStrategy(){
   if(!CLAUDE_KEY){ document.getElementById('st-out').innerHTML='<div class="err-box">Add Anthropic key to use AI strategy builder.</div>'; return; }
   var cap = parseFloat(document.getElementById('st-capital').value)||10000;
   var risk = parseFloat(document.getElementById('st-risk').value)||5;
+  // Persist for analyze tab
+  localStorage.setItem('se_capital', cap);
+  localStorage.setItem('se_risk', risk);
   var sym = (document.getElementById('st-ticker').value||'SPY').toUpperCase();
   var dte = parseInt(document.getElementById('st-dte').value)||14;
   var riskAmt = cap * risk / 100;
@@ -964,9 +1057,6 @@ function clearStrategy(){
 }
 function renderStrategy(d, sym, price, riskAmt){
   var out = document.getElementById('st-out');
-  // Collapse the form after successful build
-  var formCard = document.getElementById('st-form-card');
-  if(formCard) formCard.style.marginBottom='8px';
   // Sanitize AI numbers — cap absurd values
   (d.strategies||[]).forEach(function(s){
     s.est_cost = Math.min(Math.abs(parseFloat(s.est_cost)||0), riskAmt*3);
@@ -975,7 +1065,6 @@ function renderStrategy(d, sym, price, riskAmt){
     s.win_rate_pct = Math.min(Math.max(parseFloat(s.win_rate_pct)||45, 10), 90);
     s.est_cost = s.est_cost < 0 ? Math.abs(s.est_cost) : s.est_cost;
   });
-  var out = document.getElementById('st-out');
   var html = '<div class="card fade-in">'
     + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'
     + '<div class="sec-lbl" style="margin-bottom:0">Regime: <span style="color:var(--accent);text-transform:capitalize">'+d.regime.replace(/_/g,' ')+'</span></div>'
