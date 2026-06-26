@@ -385,19 +385,19 @@ body{padding-top:env(safe-area-inset-top);display:flex;flex-direction:column;ali
     <div style="display:flex;gap:8px;align-items:flex-end">
       <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:6px;flex:1">
         <div class="field" style="margin-bottom:0;min-width:0">
-          <div class="field-lbl" style="font-size:13px;white-space:nowrap">Capital $</div>
+          <div class="field-lbl" style="font-size:13px;white-space:nowrap;text-align:center">Capital $</div>
           <input class="field-inp" id="land-capital" type="number" value="10000" step="500"
-            onchange="saveTradeSettings()" style="font-size:20px;font-weight:800;padding:8px 10px;width:100%;min-width:0"/>
+            onchange="saveTradeSettings()" placeholder="($)" style="font-size:20px;font-weight:800;padding:8px 10px;width:100%;min-width:0;text-align:center"/>
         </div>
         <div class="field" style="margin-bottom:0;min-width:0">
-          <div class="field-lbl" style="font-size:13px;white-space:nowrap">Risk %</div>
+          <div class="field-lbl" style="font-size:13px;white-space:nowrap;text-align:center">Risk %</div>
           <input class="field-inp" id="land-risk" type="number" value="5" step="1" min="1" max="50"
-            onchange="saveTradeSettings()" style="font-size:20px;font-weight:800;padding:8px 10px;width:100%;min-width:0"/>
+            onchange="saveTradeSettings()" style="font-size:20px;font-weight:800;padding:8px 10px;width:100%;min-width:0;text-align:center"/>
         </div>
         <div class="field" style="margin-bottom:0;min-width:0">
-          <div class="field-lbl" style="font-size:13px;white-space:nowrap">DTE</div>
+          <div class="field-lbl" style="font-size:13px;white-space:nowrap;text-align:center">DTE</div>
           <select class="field-inp" id="land-dte" onchange="saveTradeSettings()"
-            style="color:var(--text);background:var(--s2);font-size:20px;font-weight:800;padding:8px 10px;width:100%;min-width:0">
+            style="color:var(--text);background:var(--s2);font-size:20px;font-weight:800;padding:8px 10px;width:100%;min-width:0;text-align:center">
             <option value="7">7d</option>
             <option value="15">15d</option>
             <option value="21">21d</option>
