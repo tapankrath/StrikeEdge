@@ -61,7 +61,7 @@ body{padding-top:env(safe-area-inset-top);display:flex;flex-direction:column;ali
 .logo-mark{width:44px;height:44px;flex-shrink:0;position:relative;border-radius:10px;box-shadow:0 0 18px rgba(255,107,53,0.22)}
 .logo-mark svg{width:44px;height:44px;display:block}
 .brand-text{flex:1}
-.brand-name{font-size:24px;font-weight:900;letter-spacing:-.6px;line-height:1}
+.brand-name{font-size:20px;font-weight:900;letter-spacing:-.6px;line-height:1}
 .brand-name .s1{color:var(--accent)}
 .brand-name .s2{color:var(--text)}
 .brand-sub{font-size:9px;font-weight:700;color:var(--muted);letter-spacing:.22em;text-transform:uppercase;margin-top:3px}
@@ -500,6 +500,9 @@ body{padding-top:env(safe-area-inset-top);display:flex;flex-direction:column;ali
     </div>
   </div>
 
+  <!-- Portfolio tickers (populated dynamically) -->
+  <div id="bt-port-pills" style="display:none;margin-bottom:10px;padding:10px;background:var(--s1);border:1px solid var(--border2);border-radius:8px"></div>
+
   <div class="dte-row">
     <button class="dte-btn on" onclick="btSetWindow(7,this)">7d</button>
     <button class="dte-btn" onclick="btSetWindow(15,this)">15d</button>
@@ -683,6 +686,7 @@ function appInit(){
   if(dte){ var sel = document.getElementById('land-dte'); if(sel) sel.value = dte; }
   try{ positions = JSON.parse(localStorage.getItem('se_positions')||'[]'); }catch(e){ positions=[]; }
   renderPortfolio();
+  renderBtPortfolioPills();
   initTickerList();
   // Update mood panel after a short delay to let prices populate
   setTimeout(updateMoodPanel, 1500);
@@ -731,6 +735,7 @@ function showTab(n){
   var panel = document.getElementById('ticker-input-panel');
   if(panel) panel.style.display = n===0 ? 'block' : 'none';
   if(n===2 && chTicker) chSelect(chTicker);
+  if(n===1) renderBtPortfolioPills();
   if(n===3) renderPortfolio();
 }
 
@@ -1093,6 +1098,8 @@ function renderStrategyCards(d, sym, price, riskAmt){
       + '<div style="color:var(--green);font-weight:800">Max profit<br>$'+Math.round(s.max_profit)+'</div>'
       + '<div style="color:var(--red);font-weight:800">Max loss<br>$'+Math.round(s.max_loss)+'</div>'
       + '</div>'
+      + '<button onclick="addRecoToPortfolio(\''+sym+'\',\''+s.name.replace(/'/g,'')+'\','+Math.round(price)+','+Math.round(s.est_cost/100 * 100)/100+','+s.max_loss+')" '
+      + 'style="margin-top:10px;width:100%;padding:7px;background:var(--s3);border:1.5px solid var(--border2);border-radius:7px;color:var(--dim);font-size:11px;font-weight:800;cursor:pointer;text-align:center">＋ Add to Portfolio</button>'
       + '</div>';
   });
 
@@ -1356,6 +1363,59 @@ function removePos(i){
   positions.splice(i,1);
   localStorage.setItem('se_positions', JSON.stringify(positions));
   renderPortfolio();
+  renderBtPortfolioPills();
+}
+
+// ── ADD RECOMMENDATION TO PORTFOLIO ──
+function addRecoToPortfolio(sym, stratName, price, entryCost, maxLoss){
+  // Derive type from strategy name
+  var name = stratName.toLowerCase();
+  var type = name.indexOf('put') >= 0 ? 'put'
+           : name.indexOf('call') >= 0 ? 'call'
+           : name.indexOf('straddle') >= 0 ? 'straddle'
+           : name.indexOf('condor') >= 0 ? 'call' : 'call';
+  var strike = Math.round(price);
+  var entry = entryCost > 0 ? parseFloat((entryCost / 100).toFixed(2)) : 2.00;
+  entry = Math.max(0.10, Math.min(entry, 50));
+  var qty = 1;
+  var dte = 14;
+  positions.push({ sym:sym, type:type, strike:strike, dte:dte, entry:entry, qty:qty, added:Date.now(), fromReco:stratName });
+  localStorage.setItem('se_positions', JSON.stringify(positions));
+  showToast('Added '+sym+' '+stratName+' → Portfolio');
+  renderBtPortfolioPills();
+}
+
+function showToast(msg){
+  var t = document.getElementById('reco-toast');
+  if(!t){
+    t = document.createElement('div');
+    t.id = 'reco-toast';
+    t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--accent);color:#fff;font-size:12px;font-weight:800;padding:9px 18px;border-radius:20px;z-index:9999;opacity:0;transition:opacity .25s;white-space:nowrap;pointer-events:none';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.style.opacity = '1';
+  setTimeout(function(){ t.style.opacity = '0'; }, 2200);
+}
+
+// ── PORTFOLIO TICKER PILLS IN BACKTEST TAB ──
+function renderBtPortfolioPills(){
+  var wrap = document.getElementById('bt-port-pills');
+  if(!wrap) return;
+  // Get unique tickers from positions that aren't already SPY/QQQ
+  var tickers = [];
+  positions.forEach(function(p){
+    if(p.sym !== 'SPY' && p.sym !== 'QQQ' && tickers.indexOf(p.sym) < 0) tickers.push(p.sym);
+  });
+  if(!tickers.length){ wrap.style.display = 'none'; return; }
+  wrap.style.display = 'block';
+  wrap.innerHTML = '<div style="font-size:9px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px">From Portfolio</div>'
+    + '<div style="display:flex;flex-wrap:wrap;gap:6px">'
+    + tickers.map(function(sym){
+        return '<button class="ticker-pill" id="bt-pill-'+sym+'" onclick="btSelect(\''+sym+'\')">'
+          + sym + '</button>';
+      }).join('')
+    + '</div>';
 }
 
 function renderPortfolio(){
