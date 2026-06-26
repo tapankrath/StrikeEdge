@@ -1114,7 +1114,7 @@ function renderStrategyCards(d, sym, price, riskAmt){
       + '<div style="color:var(--red);font-weight:800">Max loss<br>$'+Math.round(s.max_loss)+'</div>'
       + '</div>'
       + '<button onclick="addRecoToPortfolio(\''+sym+'\',\''+s.name.replace(/'/g,'')+'\','+Math.round(price)+','+Math.round(s.est_cost)+','+Math.round(s.max_loss)+')" '
-      + 'style="margin-top:10px;width:100%;padding:7px;background:var(--s3);border:1.5px solid var(--border2);border-radius:7px;color:var(--dim);font-size:11px;font-weight:800;cursor:pointer;text-align:center">＋ Add to Portfolio</button>'
+      + 'style="margin-top:10px;width:100%;padding:7px;'+(best?'background:var(--accent);border:1.5px solid var(--accent);color:#fff;':'background:var(--s3);border:1.5px solid var(--border2);color:var(--dim);')+'border-radius:7px;font-size:11px;font-weight:800;cursor:pointer;text-align:center">'+(best?'★ Add Best Fit to Portfolio':'＋ Add to Portfolio')+'</button>'
       + '</div>';
   });
 
@@ -1388,7 +1388,9 @@ function editCurrentPrice(i){
 
 function editEntry(i){
   var p = positions[i];
-  var val = prompt('Update entry price per share for '+p.sym+' '+(p.fromReco||p.type)+' (current: $'+p.entry.toFixed(2)+'):', p.entry.toFixed(2));
+  var isSpread = p.fromReco && (p.fromReco.toLowerCase().indexOf('spread')>=0 || p.fromReco.toLowerCase().indexOf('condor')>=0 || p.fromReco.toLowerCase().indexOf('straddle')>=0);
+  var hint = isSpread ? '\n(For spreads: net debit paid per share. Total cost = this × 100)' : '';
+  var val = prompt('Update entry price per share for '+p.sym+' '+(p.fromReco||p.type)+':'+hint, p.entry.toFixed(2));
   if(val === null) return;
   var n = parseFloat(val);
   if(isNaN(n) || n <= 0){ alert('Invalid price'); return; }
@@ -1514,10 +1516,10 @@ function renderPortfolio(){
       +'</div>'
       +'<div class="pos-grid">'
       +'<div class="pos-stat" onclick="editEntry('+i+')" style="cursor:pointer;position:relative">'
-        +'<div class="pos-stat-lbl">Entry <span style="color:var(--accent);font-size:8px">✎</span></div>'
+        +'<div class="pos-stat-lbl">Entry/sh <span style="color:var(--accent);font-size:8px">✎</span></div>'
         +'<div class="pos-stat-val" id="entry-val-'+i+'">$'+p.entry.toFixed(2)+'</div>'
       +'</div>'
-      +'<div class="pos-stat"><div class="pos-stat-lbl">Cost</div><div class="pos-stat-val">$'+cost.toFixed(0)+'</div></div>'
+      +'<div class="pos-stat"><div class="pos-stat-lbl">Total Cost</div><div class="pos-stat-val">$'+cost.toFixed(0)+'</div></div>'
       +pnlHtml
       +'</div>'
       +(isSpread ? '<div style="font-size:9px;color:var(--muted);margin:4px 0 8px;font-style:italic">Tap Current to enter today\'s spread value → shows P&L</div>' : '')
