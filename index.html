@@ -1161,10 +1161,24 @@ function btSetWindow(n, el){
   btWindow = n;
   document.querySelectorAll('.dte-btn').forEach(function(b){ b.className='dte-btn'; });
   el.className = 'dte-btn on';
-  runBacktest();
+  var portPos = positions.filter(function(p){ return p.sym === btTicker; });
+  runBacktest(portPos.length ? portPos[portPos.length-1] : null);
 }
 
-function runBacktest(){
+function btSelect(sym){
+  if(!sym) return;
+  sym = sym.toUpperCase();
+  btTicker = sym;
+  ['SPY','QQQ'].forEach(function(s){
+    var p = document.getElementById('bt-pill-'+s);
+    if(p) p.className = 'ticker-pill'+(s===sym?' on':'');
+  });
+  // Check if this ticker has a portfolio position to use
+  var portPos = positions.filter(function(p){ return p.sym === sym; });
+  runBacktest(portPos.length ? portPos[portPos.length-1] : null);
+}
+
+function runBacktest(portPosition){
   if(!TD_KEY){ document.getElementById('bt-out').innerHTML='<div class="err-box">Add Twelve Data key to run backtest.</div>'; return; }
   var out = document.getElementById('bt-out');
   out.innerHTML = '<div class="ai-loading"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span style="margin-left:6px;color:var(--muted)">Loading '+btTicker+' history…</span></div>';
@@ -1174,11 +1188,96 @@ function runBacktest(){
     var rows = (hist.values||[]).slice(0, btWindow).reverse();
     if(rows.length < 2){ out.innerHTML='<div class="err-box">Not enough history.</div>'; return; }
 
-    // Build daily P&L table for a straddle (neutral strategy, shows all regimes)
     var price0 = parseFloat(rows[0].close);
     var vix = parseFloat(document.getElementById('m-vix').textContent||18);
     var iv = vix/100;
 
+    // ── If we have a portfolio position, simulate THAT strategy ──
+    if(portPosition){
+      var pos = portPosition;
+      var stratName = pos.fromReco || pos.type;
+      var isCall = pos.type === 'call';
+      var isPut  = pos.type === 'put';
+      var isBullCall = stratName.toLowerCase().indexOf('bull call') >= 0;
+      var isBearPut  = stratName.toLowerCase().indexOf('bear put') >= 0;
+      var isCondor   = stratName.toLowerCase().indexOf('condor') >= 0;
+      var isStraddle = stratName.toLowerCase().indexOf('straddle') >= 0;
+      var entryPerShare = pos.entry;
+      var entryCost = entryPerShare * 100;
+
+      var html = '<div class="card fade-in">'
+        + '<div style="margin-bottom:10px">'
+        + '<div style="font-size:13px;font-weight:900;color:var(--text)">'+btTicker+' · '+stratName+'</div>'
+        + '<div style="font-size:10px;color:var(--muted);margin-top:2px">Entry: $'+entryPerShare.toFixed(2)+'/sh · Cost: $'+entryCost.toFixed(0)+' · Last '+btWindow+' days</div>'
+        + '</div>'
+        + '<div class="bt-wrap"><table class="bt-tbl"><thead><tr>'
+        + '<th>Date</th><th>Close</th><th>Move</th><th>Est Value</th><th>P&L</th>'
+        + '</tr></thead><tbody>';
+
+      var totalPL=0, wins=0, count=0;
+      rows.forEach(function(r,i){
+        if(i===0) return;
+        var prev = parseFloat(rows[i-1].close);
+        var curr = parseFloat(r.close);
+        var move = (curr-prev)/prev*100;
+        var T = Math.max((btWindow-i)/252, 1/252);
+        var K = pos.strike || Math.round(prev/5)*5;
+        var K2 = isBullCall ? Math.round(K*1.02/5)*5
+                : isBearPut  ? Math.round(K*0.97/5)*5
+                : K;
+        var val;
+        if(isBullCall)       val = Math.max(0, bsC(curr,K,T,iv) - bsC(curr,K2,T,iv)) * 100;
+        else if(isBearPut)   val = Math.max(0, bsP(curr,K,T,iv) - bsP(curr,K2,T,iv)) * 100;
+        else if(isCondor)    val = Math.max(0, entryCost - Math.abs(curr-K)*40);
+        else if(isStraddle)  val = (bsC(curr,K,T,iv) + bsP(curr,K,T,iv)) * 100;
+        else if(isCall)      val = bsC(curr,K,T,iv) * 100;
+        else                 val = bsP(curr,K,T,iv) * 100;
+        var pl = val - entryCost;
+        totalPL += pl / (rows.length-1); // avg daily contribution
+        if(pl > 0) wins++;
+        count++;
+        var mc = move>=0?'var(--green)':'var(--red)';
+        var sc = pl>0?'bt-pos':pl<0?'bt-neg':'bt-zero';
+        html += '<tr>'
+          +'<td>'+r.datetime.slice(5)+'</td>'
+          +'<td>$'+curr.toFixed(2)+'</td>'
+          +'<td style="color:'+mc+';font-weight:800">'+(move>=0?'+':'')+move.toFixed(2)+'%</td>'
+          +'<td>$'+val.toFixed(0)+'</td>'
+          +'<td class="'+sc+'">'+(pl>=0?'+':'')+pl.toFixed(0)+'</td>'
+          +'</tr>';
+      });
+
+      var finalVal = (function(){
+        var last = parseFloat(rows[rows.length-1].close);
+        var T2 = Math.max(1/252, pos.dte/252);
+        var K = pos.strike || Math.round(price0/5)*5;
+        var K2 = isBullCall ? Math.round(K*1.02/5)*5 : isBearPut ? Math.round(K*0.97/5)*5 : K;
+        if(isBullCall) return Math.max(0, bsC(last,K,T2,iv) - bsC(last,K2,T2,iv))*100;
+        if(isBearPut)  return Math.max(0, bsP(last,K,T2,iv) - bsP(last,K2,T2,iv))*100;
+        if(isStraddle) return (bsC(last,K,T2,iv)+bsP(last,K,T2,iv))*100;
+        if(isCall)     return bsC(last,K,T2,iv)*100;
+        return bsP(last,K,T2,iv)*100;
+      })();
+      var finalPL = finalVal - entryCost;
+
+      html += '</tbody></table></div>'
+        +'<div class="stat-grid" style="margin-top:10px">'
+        + statBox('Entry Cost','$'+entryCost.toFixed(0),'Your trade basis','var(--dim)')
+        + statBox('Est Value Now','$'+finalVal.toFixed(0),'Based on current price', finalVal>=entryCost?'var(--green)':'var(--red)')
+        + statBox('Est P&L','$'+(finalPL>=0?'+':'')+finalPL.toFixed(0),wins+'/'+count+' days positive', finalPL>=0?'var(--green)':'var(--red)')
+        +'</div>'
+        +'<div class="note-box" style="margin-top:0">Simulating your '+stratName+' from portfolio. Black-Scholes estimate — not live pricing.</div>'
+        +'</div>';
+
+      if(CLAUDE_KEY){
+        html += '<button class="btn-primary" style="margin-top:0" onclick="runBtAI(\''+stratName+'\','+entryCost+','+finalPL.toFixed(0)+')">✦ AI Strategy Analysis</button>'
+             + '<div id="bt-ai-out"></div>';
+      }
+      out.innerHTML = html;
+      return;
+    }
+
+    // ── Generic straddle model (no portfolio position) ──
     var html = '<div class="card fade-in">'
       + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'
       + '<div style="font-size:13px;font-weight:900;color:var(--text)">'+btTicker+' · Last '+btWindow+' Days</div>'
@@ -1220,7 +1319,6 @@ function runBacktest(){
       +'<div class="note-box" style="margin-top:0">Model uses Black-Scholes with daily ATM straddle. Estimates only — not live bid/ask.</div>'
       +'</div>';
 
-    // Add AI commentary if key exists
     if(CLAUDE_KEY){
       html += '<button class="btn-primary" style="margin-top:0" onclick="runBtAI()">✦ AI Backtest Analysis</button>'
            + '<div id="bt-ai-out"></div>';
@@ -1230,12 +1328,16 @@ function runBacktest(){
   .catch(function(e){ out.innerHTML='<div class="err-box">Error: '+e.message+'</div>'; });
 }
 
-function runBtAI(){
+function runBtAI(stratName, entryCost, finalPL){
   var el = document.getElementById('bt-ai-out');
   if(!el || !CLAUDE_KEY) return;
   el.innerHTML = '<div class="ai-loading"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>';
-  var prompt = 'Analyze '+btTicker+' options backtest for last '+btWindow+' days. VIX: '+document.getElementById('m-vix').textContent+'. '
-    +'Give 3-4 sentences: what the realized vol says about the current regime, which strategy would have worked best, and what to do now. Be direct, trader voice.';
+  var prompt = stratName
+    ? 'Analyze '+btTicker+' for the last '+btWindow+' days in context of this trade: '+stratName+' entered at $'+entryCost+' total cost. '
+      +'Estimated current P&L is $'+finalPL+'. VIX: '+document.getElementById('m-vix').textContent+'. '
+      +'Give 3-4 sentences: was this a good setup given recent price action, is the thesis still intact, and what should the trader do now (hold, close, adjust)? Be direct, trader voice.'
+    : 'Analyze '+btTicker+' options backtest for last '+btWindow+' days. VIX: '+document.getElementById('m-vix').textContent+'. '
+      +'Give 3-4 sentences: what the realized vol says about the current regime, which strategy would have worked best, and what to do now. Be direct, trader voice.';
   aiCall(prompt, 400, function(text){
     el.innerHTML = '<div class="ai-box">'+text.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>')+'</div>';
   }, function(err){ el.innerHTML='<div class="err-box">'+err+'</div>'; });
