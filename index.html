@@ -1359,6 +1359,17 @@ function addPosition(){
   renderPortfolio();
 }
 
+function editEntry(i){
+  var p = positions[i];
+  var val = prompt('Update entry price per share for '+p.sym+' '+(p.fromReco||p.type)+' (current: $'+p.entry.toFixed(2)+'):', p.entry.toFixed(2));
+  if(val === null) return;
+  var n = parseFloat(val);
+  if(isNaN(n) || n <= 0){ alert('Invalid price'); return; }
+  positions[i].entry = n;
+  localStorage.setItem('se_positions', JSON.stringify(positions));
+  renderPortfolio();
+}
+
 function removePos(i){
   positions.splice(i,1);
   localStorage.setItem('se_positions', JSON.stringify(positions));
@@ -1439,24 +1450,41 @@ function renderPortfolio(){
     var curPrice = priceCache[p.sym] || 0;
     var displayType = p.fromReco || p.type;
     var badgeType = p.type.replace('straddle','spread').replace('condor','spread');
-    // Rough current option value estimate via BS
-    var T = dteLeft/252;
-    var iv = 0.18;
-    var mktVal = T>0 ? (p.type==='call'?bsC(curPrice,p.strike,T,iv):bsP(curPrice,p.strike,T,iv))*p.qty*100 : 0;
-    totalMkt += mktVal;
-    var pnl = mktVal - cost;
-    var pnlPct = cost>0?(pnl/cost*100):0;
+    var isSpread = p.fromReco && (p.fromReco.toLowerCase().indexOf('spread')>=0 || p.fromReco.toLowerCase().indexOf('condor')>=0 || p.fromReco.toLowerCase().indexOf('straddle')>=0);
+
+    // P&L: spreads can't be priced via BS — show cost basis only, prompt manual override
+    var pnlHtml;
+    if(isSpread || !curPrice){
+      pnlHtml = '<div class="pos-stat"><div class="pos-stat-lbl">Est P&L</div><div class="pos-stat-val" style="color:var(--muted)">—</div></div>';
+    } else {
+      var T = dteLeft/252;
+      var iv = 0.18;
+      var mktVal = T>0 ? (p.type==='call'?bsC(curPrice,p.strike,T,iv):bsP(curPrice,p.strike,T,iv))*p.qty*100 : 0;
+      totalMkt += mktVal;
+      var pnl = mktVal - cost;
+      pnlHtml = '<div class="pos-stat"><div class="pos-stat-lbl">Est P&L</div><div class="pos-stat-val" style="color:'+(pnl>=0?'var(--green)':'var(--red)')+'">'+( pnl>=0?'+':'')+pnl.toFixed(0)+'</div></div>';
+    }
+
+    // Subtitle: show strategy name if from reco, else strike + type
+    var subtitle = isSpread
+      ? (p.fromReco+' · '+dteLeft+'d left · '+p.qty+' contract'+(p.qty>1?'s':''))
+      : ('$'+p.strike+' '+p.type.toUpperCase()+' · '+dteLeft+'d left · '+p.qty+' contract'+(p.qty>1?'s':''));
+
     html += '<div class="pos-card fade-in">'
       +'<div class="pos-hd">'
       +'<div><div class="pos-sym">'+p.sym+'</div>'
-      +'<div style="font-size:11px;color:var(--muted);margin-top:2px">$'+p.strike+' '+p.type.toUpperCase()+' · '+dteLeft+'d left · '+p.qty+' contract'+(p.qty>1?'s':'')+'</div></div>'
-      +'<div class="pos-type '+badgeType+'">'+displayType+'</div>'
+      +'<div style="font-size:11px;color:var(--muted);margin-top:2px">'+subtitle+'</div></div>'
+      +'<div class="pos-type '+badgeType+'" style="font-size:9px;max-width:80px;text-align:right;line-height:1.3">'+displayType+'</div>'
       +'</div>'
       +'<div class="pos-grid">'
-      +'<div class="pos-stat"><div class="pos-stat-lbl">Entry</div><div class="pos-stat-val">$'+p.entry.toFixed(2)+'</div></div>'
-      +'<div class="pos-stat"><div class="pos-stat-lbl">Cost</div><div class="pos-stat-val">$'+cost.toFixed(0)+'</div></div>'
-      +'<div class="pos-stat"><div class="pos-stat-lbl">Est P&L</div><div class="pos-stat-val" style="color:'+(pnl>=0?'var(--green)':'var(--red)')+'">'+( pnl>=0?'+':'')+pnl.toFixed(0)+'</div></div>'
+      +'<div class="pos-stat" onclick="editEntry('+i+')" style="cursor:pointer;position:relative">'
+        +'<div class="pos-stat-lbl">Entry <span style="color:var(--accent);font-size:8px">✎</span></div>'
+        +'<div class="pos-stat-val" id="entry-val-'+i+'">$'+p.entry.toFixed(2)+'</div>'
       +'</div>'
+      +'<div class="pos-stat"><div class="pos-stat-lbl">Cost</div><div class="pos-stat-val">$'+cost.toFixed(0)+'</div></div>'
+      +pnlHtml
+      +'</div>'
+      +(isSpread ? '<div style="font-size:9px;color:var(--muted);margin:4px 0 8px;font-style:italic">Multi-leg spread · P&L shown after manual close price entry</div>' : '')
       +'<div class="pos-actions">'
       +'<button class="pos-btn close" onclick="removePos('+i+')">✓ Close</button>'
       +'<button class="pos-btn stop" onclick="removePos('+i+')">✗ Stop</button>'
@@ -1470,7 +1498,8 @@ function runPortfolioAI(){
   var el = document.getElementById('port-ai-out');
   el.innerHTML = '<div class="ai-loading"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>';
   var summary = positions.map(function(p){
-    return p.qty+'x '+p.sym+' $'+p.strike+' '+p.type+' @ $'+p.entry+', '+p.dte+'d DTE';
+    var strat = p.fromReco || p.type;
+    return p.qty+'x '+p.sym+' '+strat+' @ $'+p.entry+' entry, '+p.dte+'d DTE';
   }).join('; ');
   var prompt = 'Portfolio review: '+summary+'. VIX: '+document.getElementById('m-vix').textContent+'. '
     +'Give 3-4 sentences: overall portfolio risk profile (are we net long/short vol, directional bias?), what to hedge or adjust, and one action item. Be direct.';
