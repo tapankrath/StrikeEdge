@@ -89,7 +89,7 @@ body{padding-top:env(safe-area-inset-top);display:flex;flex-direction:column;ali
 .tab:hover:not(.on){color:var(--text)}
 
 /* ── PANES ── */
-.pane{display:none;padding:14px 14px 20px}
+.pane{display:none;padding:10px 12px 16px}
 .pane.on{display:block}
 
 /* ── PAGE BORDER ── */
@@ -413,61 +413,61 @@ body{padding-top:env(safe-area-inset-top);display:flex;flex-direction:column;ali
 <div class="pane on" id="pane0">
 
   <!-- LANDING VIEW -->
-  <div id="landing-view" style="padding-top:4px">
+  <div id="landing-view" style="padding-top:0px">
 
     <!-- Market Mood Card -->
-    <div style="background:var(--s1);border:1.5px solid var(--border2);border-radius:12px;padding:14px;margin-bottom:10px">
-      <div class="sec-lbl" style="margin-bottom:10px">Market Mood</div>
+    <div style="background:var(--s1);border:1.5px solid var(--border2);border-radius:12px;padding:10px 12px;margin-bottom:8px">
+      <div class="sec-lbl" style="margin-bottom:7px">Market Mood</div>
       <div id="mood-content">
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
-          <div id="mood-icon" style="font-size:28px;line-height:1">—</div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:7px">
+          <div id="mood-icon" style="font-size:32px;line-height:1">—</div>
           <div>
-            <div id="mood-label" style="font-size:17px;font-weight:900;color:var(--text)">Loading…</div>
-            <div id="mood-sub" style="font-size:11px;color:var(--muted);margin-top:2px;font-weight:600"></div>
+            <div id="mood-label" style="font-size:20px;font-weight:900;color:var(--text)">Loading…</div>
+            <div id="mood-sub" style="font-size:13px;color:var(--muted);margin-top:2px;font-weight:600"></div>
           </div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-          <div style="background:var(--s2);border:1px solid var(--border2);border-radius:9px;padding:10px">
-            <div style="font-size:8px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">VIX</div>
-            <div id="mood-vix" style="font-size:18px;font-weight:900;color:var(--text)">--</div>
-            <div id="mood-vix-txt" style="font-size:9px;color:var(--muted);margin-top:2px;font-weight:600"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+          <div style="background:var(--s2);border:1px solid var(--border2);border-radius:8px;padding:8px">
+            <div style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:3px">VIX</div>
+            <div id="mood-vix" style="font-size:22px;font-weight:900;color:var(--text)">--</div>
+            <div id="mood-vix-txt" style="font-size:12px;color:var(--muted);margin-top:2px;font-weight:600"></div>
           </div>
-          <div style="background:var(--s2);border:1px solid var(--border2);border-radius:9px;padding:10px">
-            <div style="font-size:8px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">Trend</div>
-            <div id="mood-trend" style="font-size:18px;font-weight:900;color:var(--text)">--</div>
-            <div id="mood-trend-txt" style="font-size:9px;color:var(--muted);margin-top:2px;font-weight:600"></div>
+          <div style="background:var(--s2);border:1px solid var(--border2);border-radius:8px;padding:8px">
+            <div style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:3px">Trend</div>
+            <div id="mood-trend" style="font-size:22px;font-weight:900;color:var(--text)">--</div>
+            <div id="mood-trend-txt" style="font-size:12px;color:var(--muted);margin-top:2px;font-weight:600"></div>
           </div>
         </div>
       </div>
     </div>
 
     <!-- Strategy Guide 2x2 -->
-    <div style="background:var(--s1);border:1.5px solid var(--border2);border-radius:12px;padding:14px;margin-bottom:10px">
-      <div class="sec-lbl" style="margin-bottom:10px">Strategy Guide</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px">
-        <div style="padding:10px;background:var(--gbg);border:1.5px solid var(--gbd);border-radius:9px">
-          <div style="font-size:12px;font-weight:900;color:var(--green);margin-bottom:3px">📈 Bull Call</div>
-          <div style="font-size:9px;color:var(--dim);font-weight:600">Low VIX · Bullish</div>
+    <div style="background:var(--s1);border:1.5px solid var(--border2);border-radius:12px;padding:10px 12px;margin-bottom:8px">
+      <div class="sec-lbl" style="margin-bottom:7px">Strategy Guide</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+        <div style="padding:8px 10px;background:var(--gbg);border:1.5px solid var(--gbd);border-radius:9px">
+          <div style="font-size:15px;font-weight:900;color:var(--green);margin-bottom:3px">📈 Bull Call</div>
+          <div style="font-size:12px;color:var(--dim);font-weight:600">Low VIX · Bullish</div>
         </div>
-        <div style="padding:10px;background:var(--rbg);border:1.5px solid var(--rbd);border-radius:9px">
-          <div style="font-size:12px;font-weight:900;color:var(--red);margin-bottom:3px">📉 Bear Put</div>
-          <div style="font-size:9px;color:var(--dim);font-weight:600">Low VIX · Bearish</div>
+        <div style="padding:8px 10px;background:var(--rbg);border:1.5px solid var(--rbd);border-radius:9px">
+          <div style="font-size:15px;font-weight:900;color:var(--red);margin-bottom:3px">📉 Bear Put</div>
+          <div style="font-size:12px;color:var(--dim);font-weight:600">Low VIX · Bearish</div>
         </div>
-        <div style="padding:10px;background:var(--abg);border:1.5px solid var(--abd);border-radius:9px">
-          <div style="font-size:12px;font-weight:900;color:var(--amber);margin-bottom:3px">⚡ Straddle</div>
-          <div style="font-size:9px;color:var(--dim);font-weight:600">High VIX · Any dir</div>
+        <div style="padding:8px 10px;background:var(--abg);border:1.5px solid var(--abd);border-radius:9px">
+          <div style="font-size:15px;font-weight:900;color:var(--amber);margin-bottom:3px">⚡ Straddle</div>
+          <div style="font-size:12px;color:var(--dim);font-weight:600">High VIX · Any dir</div>
         </div>
-        <div style="padding:10px;background:var(--bbg);border:1.5px solid var(--bbd);border-radius:9px">
-          <div style="font-size:12px;font-weight:900;color:var(--blue);margin-bottom:3px">🎯 Iron Condor</div>
-          <div style="font-size:9px;color:var(--dim);font-weight:600">High VIX · Neutral</div>
+        <div style="padding:8px 10px;background:var(--bbg);border:1.5px solid var(--bbd);border-radius:9px">
+          <div style="font-size:15px;font-weight:900;color:var(--blue);margin-bottom:3px">🎯 Iron Condor</div>
+          <div style="font-size:12px;color:var(--dim);font-weight:600">High VIX · Neutral</div>
         </div>
       </div>
     </div>
 
     <!-- Tip -->
-    <div style="padding:12px 14px;background:var(--s1);border:1.5px solid var(--border2);border-left:3px solid var(--accent);border-radius:0 10px 10px 0;margin-bottom:10px">
-      <div style="font-size:12px;color:var(--dim);line-height:1.8">
-        <strong style="color:var(--text);font-size:13px">StrikeEdge</strong> gives you an AI-powered edge on every options trade.
+    <div style="padding:9px 12px;background:var(--s1);border:1.5px solid var(--border2);border-left:3px solid var(--accent);border-radius:0 10px 10px 0;margin-bottom:8px">
+      <div style="font-size:13px;color:var(--dim);line-height:1.7">
+        <strong style="color:var(--text);font-size:14px">StrikeEdge</strong> gives you an AI-powered edge on every options trade.
         Type a ticker and hit <strong style="color:var(--accent)">+</strong> to add it, set your capital, risk %, and DTE — then hit <strong style="color:var(--accent)">GO →</strong>.
       </div>
     </div>
@@ -1508,6 +1508,22 @@ function removePos(i){
   renderBtPortfolioPills();
 }
 
+function closePos(i){
+  var p = positions[i];
+  var label = p.fromReco || (p.sym+' '+p.type);
+  if(!confirm('Close position: '+label+'?\n\nThis marks it as closed (exited at market/profit).')) return;
+  removePos(i);
+  showToast('✓ Position closed');
+}
+
+function stopPos(i){
+  var p = positions[i];
+  var label = p.fromReco || (p.sym+' '+p.type);
+  if(!confirm('Stop out: '+label+'?\n\nThis removes the position as a stop-loss exit.')) return;
+  removePos(i);
+  showToast('✗ Stopped out — position removed');
+}
+
 // ── ADD RECOMMENDATION TO PORTFOLIO ──
 function addRecoToPortfolio(sym, stratName, price, estCostDollars, maxLoss){
   // Map strategy name to a portfolio type label
@@ -1626,8 +1642,8 @@ function renderPortfolio(){
       +'</div>'
       +(isSpread ? '<div style="font-size:9px;color:var(--muted);margin:4px 0 8px;font-style:italic">Tap Current to enter today\'s spread value → shows P&L</div>' : '')
       +'<div class="pos-actions">'
-      +'<button class="pos-btn close" onclick="removePos('+i+')">✓ Close</button>'
-      +'<button class="pos-btn stop" onclick="removePos('+i+')">✗ Stop</button>'
+      +'<button class="pos-btn close" onclick="closePos('+i+')">✓ Close</button>'
+      +'<button class="pos-btn stop" onclick="stopPos('+i+')">✗ Stop Out</button>'
       +'</div></div>';
   });
   out.innerHTML = html;
