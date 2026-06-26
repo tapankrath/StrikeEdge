@@ -1017,6 +1017,10 @@ function runAnalysis(){
         var cl = text.split('```json').join('').split('```').join('').trim();
         var st = cl.indexOf('{'), en = cl.lastIndexOf('}');
         var d = JSON.parse(cl.slice(st, en+1));
+        // Override top_pick based on signal to ensure consistency
+        if(d.signal==='BULLISH') d.top_pick = 2;
+        else if(d.signal==='BEARISH') d.top_pick = 0;
+        else d.top_pick = 1;
         renderSignalCard(sym, price, chg, rsi14, ma20, rv30, iv, vix, d);
         renderStrategyCards(d, sym, price, riskAmt);
       } catch(e){
@@ -1359,6 +1363,18 @@ function addPosition(){
   renderPortfolio();
 }
 
+function editCurrentPrice(i){
+  var p = positions[i];
+  var cur = p.currentPrice !== undefined ? p.currentPrice.toFixed(2) : p.entry.toFixed(2);
+  var val = prompt('Enter current spread value per share for '+p.sym+' '+(p.fromReco||p.type)+':\n(Entry was $'+p.entry.toFixed(2)+' — P&L = (current − entry) × 100)', cur);
+  if(val === null) return;
+  var n = parseFloat(val);
+  if(isNaN(n) || n < 0){ alert('Invalid price'); return; }
+  positions[i].currentPrice = n;
+  localStorage.setItem('se_positions', JSON.stringify(positions));
+  renderPortfolio();
+}
+
 function editEntry(i){
   var p = positions[i];
   var val = prompt('Update entry price per share for '+p.sym+' '+(p.fromReco||p.type)+' (current: $'+p.entry.toFixed(2)+'):', p.entry.toFixed(2));
@@ -1452,9 +1468,18 @@ function renderPortfolio(){
     var badgeType = p.type.replace('straddle','spread').replace('condor','spread');
     var isSpread = p.fromReco && (p.fromReco.toLowerCase().indexOf('spread')>=0 || p.fromReco.toLowerCase().indexOf('condor')>=0 || p.fromReco.toLowerCase().indexOf('straddle')>=0);
 
-    // P&L: spreads can't be priced via BS — show cost basis only, prompt manual override
+    // P&L calculation
     var pnlHtml;
-    if(isSpread || !curPrice){
+    if(isSpread){
+      // For spreads: show entry + editable current value → P&L = (current - entry) × 100
+      var curVal = (p.currentPrice !== undefined) ? p.currentPrice : null;
+      var pnlVal = curVal !== null ? ((curVal - p.entry) * p.qty * 100) : null;
+      pnlHtml = '<div class="pos-stat" onclick="editCurrentPrice('+i+')" style="cursor:pointer">'
+        +'<div class="pos-stat-lbl">Current <span style="color:var(--accent);font-size:8px">✎</span></div>'
+        +'<div class="pos-stat-val" style="color:'+(pnlVal===null?'var(--muted)':pnlVal>=0?'var(--green)':'var(--red)')+'">'+
+          (pnlVal===null ? '—' : (pnlVal>=0?'+':'')+pnlVal.toFixed(0))
+        +'</div></div>';
+    } else if(!curPrice){
       pnlHtml = '<div class="pos-stat"><div class="pos-stat-lbl">Est P&L</div><div class="pos-stat-val" style="color:var(--muted)">—</div></div>';
     } else {
       var T = dteLeft/252;
@@ -1484,7 +1509,7 @@ function renderPortfolio(){
       +'<div class="pos-stat"><div class="pos-stat-lbl">Cost</div><div class="pos-stat-val">$'+cost.toFixed(0)+'</div></div>'
       +pnlHtml
       +'</div>'
-      +(isSpread ? '<div style="font-size:9px;color:var(--muted);margin:4px 0 8px;font-style:italic">Multi-leg spread · P&L shown after manual close price entry</div>' : '')
+      +(isSpread ? '<div style="font-size:9px;color:var(--muted);margin:4px 0 8px;font-style:italic">Tap Current to enter today\'s spread value → shows P&L</div>' : '')
       +'<div class="pos-actions">'
       +'<button class="pos-btn close" onclick="removePos('+i+')">✓ Close</button>'
       +'<button class="pos-btn stop" onclick="removePos('+i+')">✗ Stop</button>'
