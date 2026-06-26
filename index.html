@@ -1002,9 +1002,9 @@ function runAnalysis(){
       + 'Est IV: '+(iv?iv.toFixed(1)+'%':'N/A')+'\n'
       + 'VIX: '+(vix||'N/A')+'\n'
       + 'Capital: $'+capital+' | Risk amt: $'+riskAmt.toFixed(0)+' | DTE: '+dte+' days\n\n'
-      + 'Return ONLY this JSON structure:\n'
+      + 'Return ONLY this JSON structure (no extra text). Set top_pick to the 0-based index of the best matching strategy: BULLISH→2 (Bull Call Spread), BEARISH→0 (Bear Put Spread), NEUTRAL→1 (Iron Condor). Override if news/macro context justifies a different pick.\n'
       + '{"signal":"BULLISH","confidence":"High","action":"BUY CALL","reason":"2-3 sentence explanation","iv_regime":"Fair","key_level":'+Math.round(price)+'.0,"stop":'+(Math.round(price*0.98))+'.0,'
-      + '"regime":"neutral_to_bearish","macro_note":"one sentence on market context","top_pick":0,'
+      + '"regime":"neutral_to_bearish","macro_note":"one sentence on market context","top_pick":2,'
       + '"strategies":['
       + '{"name":"Bear Put Spread","legs":"Buy 1 '+sym+' '+Math.round(price)+' Put '+dte+'DTE, Sell 1 '+sym+' '+Math.round(price*0.97)+' Put '+dte+'DTE","est_cost":'+Math.round(riskAmt*0.5)+',"max_profit":'+Math.round(riskAmt*1.5)+',"max_loss":'+Math.round(riskAmt*0.5)+',"win_rate_pct":42,"best_for":"Moderate downside","risk":"Loses full premium if above strike at expiry"},'
       + '{"name":"Iron Condor","legs":"Sell 1 '+sym+' '+Math.round(price*0.97)+' Put, Buy 1 '+sym+' '+Math.round(price*0.95)+' Put, Sell 1 '+sym+' '+Math.round(price*1.02)+' Call, Buy 1 '+sym+' '+Math.round(price*1.04)+' Call — all '+dte+'DTE","est_cost":'+Math.round(riskAmt*0.6)+',"max_profit":'+Math.round(riskAmt*0.7)+',"max_loss":'+Math.round(riskAmt*0.6)+',"win_rate_pct":58,"best_for":"Range-bound market","risk":"Sharp directional move"},\n'
@@ -1098,7 +1098,7 @@ function renderStrategyCards(d, sym, price, riskAmt){
       + '<div style="color:var(--green);font-weight:800">Max profit<br>$'+Math.round(s.max_profit)+'</div>'
       + '<div style="color:var(--red);font-weight:800">Max loss<br>$'+Math.round(s.max_loss)+'</div>'
       + '</div>'
-      + '<button onclick="addRecoToPortfolio(\''+sym+'\',\''+s.name.replace(/'/g,'')+'\','+Math.round(price)+','+Math.round(s.est_cost/100 * 100)/100+','+s.max_loss+')" '
+      + '<button onclick="addRecoToPortfolio(\''+sym+'\',\''+s.name.replace(/'/g,'')+'\','+Math.round(price)+','+Math.round(s.est_cost)+','+Math.round(s.max_loss)+')" '
       + 'style="margin-top:10px;width:100%;padding:7px;background:var(--s3);border:1.5px solid var(--border2);border-radius:7px;color:var(--dim);font-size:11px;font-weight:800;cursor:pointer;text-align:center">＋ Add to Portfolio</button>'
       + '</div>';
   });
@@ -1367,21 +1367,23 @@ function removePos(i){
 }
 
 // ── ADD RECOMMENDATION TO PORTFOLIO ──
-function addRecoToPortfolio(sym, stratName, price, entryCost, maxLoss){
-  // Derive type from strategy name
+function addRecoToPortfolio(sym, stratName, price, estCostDollars, maxLoss){
+  // Map strategy name to a portfolio type label
   var name = stratName.toLowerCase();
-  var type = name.indexOf('put') >= 0 ? 'put'
-           : name.indexOf('call') >= 0 ? 'call'
-           : name.indexOf('straddle') >= 0 ? 'straddle'
-           : name.indexOf('condor') >= 0 ? 'call' : 'call';
+  var type = name.indexOf('straddle') >= 0 ? 'straddle'
+           : name.indexOf('condor')   >= 0 ? 'condor'
+           : name.indexOf('bear put') >= 0 ? 'put'
+           : name.indexOf('bull call') >= 0 ? 'call'
+           : name.indexOf('put')      >= 0 ? 'put'
+           : name.indexOf('call')     >= 0 ? 'call'
+           : 'spread';
   var strike = Math.round(price);
-  var entry = entryCost > 0 ? parseFloat((entryCost / 100).toFixed(2)) : 2.00;
-  entry = Math.max(0.10, Math.min(entry, 50));
-  var qty = 1;
-  var dte = 14;
-  positions.push({ sym:sym, type:type, strike:strike, dte:dte, entry:entry, qty:qty, added:Date.now(), fromReco:stratName });
+  // est_cost is total dollar cost (e.g. $250); entry per share = est_cost / 100 contracts
+  var entry = estCostDollars > 0 ? parseFloat((estCostDollars / 100).toFixed(2)) : 2.00;
+  entry = Math.max(0.10, Math.min(entry, 99));
+  positions.push({ sym:sym, type:type, strike:strike, dte:14, entry:entry, qty:1, added:Date.now(), fromReco:stratName });
   localStorage.setItem('se_positions', JSON.stringify(positions));
-  showToast('Added '+sym+' '+stratName+' → Portfolio');
+  showToast('✓ '+sym+' '+stratName+' added to Portfolio');
   renderBtPortfolioPills();
 }
 
@@ -1435,6 +1437,8 @@ function renderPortfolio(){
     var daysHeld = Math.round((Date.now()-p.added)/86400000);
     var dteLeft = Math.max(0, p.dte - daysHeld);
     var curPrice = priceCache[p.sym] || 0;
+    var displayType = p.fromReco || p.type;
+    var badgeType = p.type.replace('straddle','spread').replace('condor','spread');
     // Rough current option value estimate via BS
     var T = dteLeft/252;
     var iv = 0.18;
@@ -1446,7 +1450,7 @@ function renderPortfolio(){
       +'<div class="pos-hd">'
       +'<div><div class="pos-sym">'+p.sym+'</div>'
       +'<div style="font-size:11px;color:var(--muted);margin-top:2px">$'+p.strike+' '+p.type.toUpperCase()+' · '+dteLeft+'d left · '+p.qty+' contract'+(p.qty>1?'s':'')+'</div></div>'
-      +'<div class="pos-type '+p.type.replace('straddle','spread')+'">'+p.type+'</div>'
+      +'<div class="pos-type '+badgeType+'">'+displayType+'</div>'
       +'</div>'
       +'<div class="pos-grid">'
       +'<div class="pos-stat"><div class="pos-stat-lbl">Entry</div><div class="pos-stat-val">$'+p.entry.toFixed(2)+'</div></div>'
