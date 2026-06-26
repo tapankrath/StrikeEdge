@@ -72,14 +72,14 @@ body{padding-top:env(safe-area-inset-top);display:flex;flex-direction:column;ali
 /* ── PRICE BAR ── */
 .data-strip{display:flex;align-items:stretch;border-top:1px solid var(--border);border-bottom:1px solid var(--border);overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;background:var(--bg)}
 .data-strip::-webkit-scrollbar{display:none}
-.ds-item{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:9px 14px;border-right:1px solid var(--border);cursor:pointer;white-space:nowrap;flex:1;transition:background .15s}
+.ds-item{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:11px 14px;border-right:1px solid var(--border);cursor:pointer;white-space:nowrap;flex:1;transition:background .15s}
 .ds-item:last-child{border-right:none}
 .ds-item:hover{background:var(--s2)}
-.ds-sym{font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;margin-bottom:4px;color:var(--muted)}
+.ds-sym{font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;margin-bottom:5px;color:var(--muted)}
 .ds-item.spy .ds-sym{color:#60a5fa}
 .ds-item.qqq .ds-sym{color:var(--amber)}
-.ds-price{font-size:13px;font-weight:900;color:var(--text);letter-spacing:-.3px;line-height:1}
-.ds-chg{font-size:9px;font-weight:700;margin-top:3px;line-height:1}
+.ds-price{font-size:20px;font-weight:900;color:var(--text);letter-spacing:-.5px;line-height:1}
+.ds-chg{font-size:13px;font-weight:700;margin-top:4px;line-height:1}
 .up{color:var(--green)}.dn{color:var(--red)}.flat{color:var(--dim)}
 
 /* ── TABS ── */
@@ -385,19 +385,19 @@ body{padding-top:env(safe-area-inset-top);display:flex;flex-direction:column;ali
     <div style="display:flex;gap:8px;align-items:flex-end">
       <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:6px;flex:1">
         <div class="field" style="margin-bottom:0;min-width:0">
-          <div class="field-lbl" style="font-size:8px;white-space:nowrap">Capital $</div>
+          <div class="field-lbl" style="font-size:13px;white-space:nowrap">Capital $</div>
           <input class="field-inp" id="land-capital" type="number" value="10000" step="500"
-            onchange="saveTradeSettings()" style="font-size:13px;padding:7px 8px;width:100%;min-width:0"/>
+            onchange="saveTradeSettings()" style="font-size:20px;font-weight:800;padding:8px 10px;width:100%;min-width:0"/>
         </div>
         <div class="field" style="margin-bottom:0;min-width:0">
-          <div class="field-lbl" style="font-size:8px;white-space:nowrap">Risk %</div>
+          <div class="field-lbl" style="font-size:13px;white-space:nowrap">Risk %</div>
           <input class="field-inp" id="land-risk" type="number" value="5" step="1" min="1" max="50"
-            onchange="saveTradeSettings()" style="font-size:13px;padding:7px 8px;width:100%;min-width:0"/>
+            onchange="saveTradeSettings()" style="font-size:20px;font-weight:800;padding:8px 10px;width:100%;min-width:0"/>
         </div>
         <div class="field" style="margin-bottom:0;min-width:0">
-          <div class="field-lbl" style="font-size:8px;white-space:nowrap">DTE</div>
+          <div class="field-lbl" style="font-size:13px;white-space:nowrap">DTE</div>
           <select class="field-inp" id="land-dte" onchange="saveTradeSettings()"
-            style="color:var(--text);background:var(--s2);font-size:13px;padding:7px 8px;width:100%;min-width:0">
+            style="color:var(--text);background:var(--s2);font-size:20px;font-weight:800;padding:8px 10px;width:100%;min-width:0">
             <option value="7">7d</option>
             <option value="15">15d</option>
             <option value="21">21d</option>
@@ -405,7 +405,7 @@ body{padding-top:env(safe-area-inset-top);display:flex;flex-direction:column;ali
           </select>
         </div>
       </div>
-      <button onclick="runFromList()" style="background:var(--accent);color:#fff;border-radius:10px;padding:0 18px;font-size:13px;font-weight:900;border:none;letter-spacing:.04em;height:40px;flex-shrink:0;white-space:nowrap" ontouchstart="" onmousedown="this.style.opacity='.8'" onmouseup="this.style.opacity='1'">GO →</button>
+      <button onclick="runFromList()" style="background:var(--accent);color:#fff;border-radius:10px;padding:0 18px;font-size:18px;font-weight:900;border:none;letter-spacing:.04em;height:52px;flex-shrink:0;white-space:nowrap" ontouchstart="" onmousedown="this.style.opacity='.8'" onmouseup="this.style.opacity='1'">GO →</button>
     </div>
   </div>
 </div>
@@ -451,27 +451,27 @@ body{padding-top:env(safe-area-inset-top);display:flex;flex-direction:column;ali
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px">
 
         <div style="padding:12px;background:var(--gbg);border:1.5px solid var(--gbd);border-radius:10px;text-align:center">
-          <div style="font-size:20px;margin-bottom:5px">📈</div>
-          <div style="font-size:13px;font-weight:900;color:var(--green);margin-bottom:3px">Bull Call</div>
-          <div style="font-size:11px;color:var(--dim);font-weight:600;line-height:1.4">Low VIX<br>Bullish bias</div>
+          <div style="font-size:28px;margin-bottom:6px">📈</div>
+          <div style="font-size:17px;font-weight:900;color:var(--green);margin-bottom:4px">Bull Call</div>
+          <div style="font-size:13px;color:var(--dim);font-weight:600;line-height:1.4">Low VIX<br>Bullish bias</div>
         </div>
 
         <div style="padding:12px;background:var(--rbg);border:1.5px solid var(--rbd);border-radius:10px;text-align:center">
-          <div style="font-size:20px;margin-bottom:5px">📉</div>
-          <div style="font-size:13px;font-weight:900;color:var(--red);margin-bottom:3px">Bear Put</div>
-          <div style="font-size:11px;color:var(--dim);font-weight:600;line-height:1.4">Low VIX<br>Bearish bias</div>
+          <div style="font-size:28px;margin-bottom:6px">📉</div>
+          <div style="font-size:17px;font-weight:900;color:var(--red);margin-bottom:4px">Bear Put</div>
+          <div style="font-size:13px;color:var(--dim);font-weight:600;line-height:1.4">Low VIX<br>Bearish bias</div>
         </div>
 
         <div style="padding:12px;background:var(--abg);border:1.5px solid var(--abd);border-radius:10px;text-align:center">
-          <div style="font-size:20px;margin-bottom:5px">⚡</div>
-          <div style="font-size:13px;font-weight:900;color:var(--amber);margin-bottom:3px">Straddle</div>
-          <div style="font-size:11px;color:var(--dim);font-weight:600;line-height:1.4">High VIX<br>Any direction</div>
+          <div style="font-size:28px;margin-bottom:6px">⚡</div>
+          <div style="font-size:17px;font-weight:900;color:var(--amber);margin-bottom:4px">Straddle</div>
+          <div style="font-size:13px;color:var(--dim);font-weight:600;line-height:1.4">High VIX<br>Any direction</div>
         </div>
 
         <div style="padding:12px;background:var(--bbg);border:1.5px solid var(--bbd);border-radius:10px;text-align:center">
-          <div style="font-size:20px;margin-bottom:5px">🎯</div>
-          <div style="font-size:13px;font-weight:900;color:var(--blue);margin-bottom:3px">Iron Condor</div>
-          <div style="font-size:11px;color:var(--dim);font-weight:600;line-height:1.4">High VIX<br>Neutral range</div>
+          <div style="font-size:28px;margin-bottom:6px">🎯</div>
+          <div style="font-size:17px;font-weight:900;color:var(--blue);margin-bottom:4px">Iron Condor</div>
+          <div style="font-size:13px;color:var(--dim);font-weight:600;line-height:1.4">High VIX<br>Neutral range</div>
         </div>
 
       </div>
