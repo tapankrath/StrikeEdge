@@ -361,7 +361,7 @@ body{padding-top:env(safe-area-inset-top);display:flex;flex-direction:column;ali
 
   <!-- TAB BAR -->
   <div id="tab-bar">
-    <button class="tab on" onclick="showTab(0);goHome()">Analyze</button>
+    <button class="tab on" onclick="showTab(0)">Analyze</button>
     <button class="tab" onclick="showTab(1)">Backtest</button>
     <button class="tab" onclick="showTab(2)">Chart</button>
     <button class="tab" onclick="showTab(3)">Portfolio</button>
@@ -734,8 +734,19 @@ function showTab(n){
   document.querySelectorAll('.tab').forEach(function(t,i){ t.className='tab'+(i===n?' on':''); });
   var panel = document.getElementById('ticker-input-panel');
   if(panel) panel.style.display = n===0 ? 'block' : 'none';
-  if(n===2 && chTicker) chSelect(chTicker);
+  if(n===0){
+    // Restore last analysis if one exists, otherwise show landing
+    var hasResults = document.getElementById('sig-out') && document.getElementById('sig-out').innerHTML.trim() !== '';
+    if(hasResults){
+      document.getElementById('landing-view').style.display = 'none';
+      document.getElementById('results-view').style.display = 'block';
+    } else {
+      document.getElementById('landing-view').style.display = 'block';
+      document.getElementById('results-view').style.display = 'none';
+    }
+  }
   if(n===1) renderBtPortfolioPills();
+  if(n===2 && chTicker) chSelect(chTicker);
   if(n===3) renderPortfolio();
 }
 
