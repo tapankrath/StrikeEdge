@@ -41,7 +41,7 @@
   --accent:#ff6b35;
 }
 html,body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,sans-serif;font-size:14px;-webkit-font-smoothing:antialiased;min-height:100vh;margin:0;padding:0}
-html{overflow-x:clip}
+html{overflow-x:clip;overflow-y:auto}
 button,input,select{font-family:inherit;-webkit-appearance:none;appearance:none;outline:none}
 button{cursor:pointer;border:none;touch-action:manipulation;-webkit-user-select:none;user-select:none}
 input{border:none}
@@ -49,13 +49,13 @@ input[type=number]{-moz-appearance:textfield}
 input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appearance:none}
 
 /* ── LAYOUT ── */
-html,body{width:100%;overflow-x:hidden}
-body{padding-top:env(safe-area-inset-top);display:flex;flex-direction:column;align-items:center}
-.app{width:100%;max-width:480px;margin:0 auto;padding:0 0 80px;padding-bottom:calc(80px + env(safe-area-inset-bottom));min-height:100vh}
+html,body{width:100%;overflow-x:clip}
+body{display:flex;flex-direction:column;align-items:center}
+.app{width:100%;max-width:480px;margin:0 auto;padding-bottom:calc(80px + env(safe-area-inset-bottom));min-height:100vh;padding-top:var(--hdr-h,110px)}
 .page-wrap{width:100%;max-width:480px;margin:0 auto}
 
 /* ── HEADER ── */
-#hdr{position:sticky;top:0;z-index:200;background:var(--s1);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);padding-top:env(safe-area-inset-top);box-shadow:0 1px 0 var(--border);width:100%}
+#hdr{position:fixed;top:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;z-index:200;background:var(--s1);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);padding-top:env(safe-area-inset-top);box-shadow:0 2px 12px rgba(0,0,0,.4);border-left:1px solid var(--border2);border-right:1px solid var(--border2)}
 #sub-hdr{background:var(--s1);border-bottom:2px solid var(--border);width:100%}
 .hdr-top{display:flex;align-items:center;gap:10px;padding:8px 14px 10px;max-width:480px;margin:0 auto;width:100%}
 .logo-mark{width:36px;height:36px;flex-shrink:0;position:relative;border-radius:8px;box-shadow:0 0 14px rgba(255,107,53,0.22)}
@@ -94,7 +94,7 @@ body{padding-top:env(safe-area-inset-top);display:flex;flex-direction:column;ali
 
 /* ── PAGE BORDER ── */
 .app{border-left:1px solid var(--border2);border-right:1px solid var(--border2);box-sizing:border-box;box-shadow:0 0 0 1px rgba(255,107,53,0.08),inset 0 0 60px rgba(255,107,53,0.02)}
-#hdr{border-left:1px solid var(--border2);border-right:1px solid var(--border2)}
+
 
 /* ── SECTION LABEL ── */
 .sec-lbl{font-size:9px;font-weight:900;color:var(--dim);text-transform:uppercase;letter-spacing:.14em;margin-bottom:10px;display:flex;align-items:center;gap:6px}
@@ -212,7 +212,7 @@ body{padding-top:env(safe-area-inset-top);display:flex;flex-direction:column;ali
 
 
 /* ── DTE PILLS ── */
-.dte-row{display:flex;gap:6px;margin-bottom:10px}
+.dte-row{display:flex;gap:6px;margin-bottom:10px;justify-content:center}
 .dte-btn{padding:7px 16px;border-radius:7px;font-size:12px;font-weight:800;background:var(--s2);border:1.5px solid var(--border2);color:var(--dim);cursor:pointer;transition:all .15s}
 .dte-btn.on{background:var(--s3);border-color:var(--accent);color:var(--accent)}
 
@@ -348,13 +348,6 @@ body{padding-top:env(safe-area-inset-top);display:flex;flex-direction:column;ali
     </div>
     <button class="hdr-keys" id="keys-btn" onclick="openSettings()">⚙ Keys</button>
   </div>
-</div>
-
-<!-- ═══ SCROLLABLE CONTENT ═══ -->
-<div class="app">
-
-<!-- MACRO + TABS + TICKER -->
-<div id="sub-hdr" style="background:var(--s1);border-bottom:1px solid var(--border)">
 
   <!-- PRICE BAR -->
   <div class="data-strip" style="justify-content:center">
@@ -388,9 +381,10 @@ body{padding-top:env(safe-area-inset-top);display:flex;flex-direction:column;ali
     <button class="tab" onclick="showTab(3)">Port</button>
     <button class="tab" onclick="showTab(4)">P&amp;L</button>
   </div>
-
-
 </div>
+
+<!-- ═══ SCROLLABLE CONTENT ═══ -->
+<div class="app">
 
 <!-- ═══ PANE 0: ANALYZE ═══ -->
 <div class="pane on" id="pane0">
