@@ -273,7 +273,41 @@ body{display:flex;flex-direction:column;align-items:center}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 .fade-in{animation:fadeIn .3s ease}
 
-/* ── RESPONSIVE ── */
+/* ── AUTO SCAN ── */
+.scan-card{background:var(--s1);border:1.5px solid var(--border2);border-radius:12px;margin-bottom:8px;overflow:hidden}
+.scan-header{display:flex;align-items:center;justify-content:space-between;padding:10px 12px 8px}
+.scan-title{font-size:9px;font-weight:900;color:var(--accent);text-transform:uppercase;letter-spacing:.14em;display:flex;align-items:center;gap:5px}
+.scan-title::before{content:'';width:5px;height:5px;background:var(--accent);border-radius:50%}
+.scan-refresh{background:none;border:1px solid var(--border2);color:var(--muted);border-radius:6px;padding:3px 9px;font-size:10px;font-weight:700;cursor:pointer;transition:all .15s}
+.scan-refresh:hover{border-color:var(--accent);color:var(--accent)}
+.scan-top-pick{padding:0 12px 12px}
+.scan-pick-row{display:flex;align-items:center;justify-content:space-between;background:var(--s2);border-radius:10px;padding:10px 12px;margin-bottom:6px;border:1.5px solid var(--border2)}
+.scan-pick-sym{font-size:20px;font-weight:900;color:var(--text);letter-spacing:-.5px}
+.scan-pick-signal{font-size:10px;font-weight:800;padding:3px 8px;border-radius:5px;text-transform:uppercase;letter-spacing:.06em}
+.scan-pick-signal.bull{background:var(--gbg);color:var(--green);border:1px solid var(--gbd)}
+.scan-pick-signal.bear{background:var(--rbg);color:var(--red);border:1px solid var(--rbd)}
+.scan-pick-signal.neutral{background:var(--abg);color:var(--amber);border:1px solid var(--abd)}
+.scan-pick-action{font-size:13px;font-weight:900;color:var(--text);margin-top:3px}
+.scan-pick-reason{font-size:10px;color:var(--muted);margin-top:2px;font-weight:500;line-height:1.4}
+.scan-scores{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-bottom:8px}
+.scan-score-box{background:var(--bg);border-radius:8px;padding:7px 6px;text-align:center;border:1px solid var(--border)}
+.scan-score-lbl{font-size:8px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px}
+.scan-score-val{font-size:13px;font-weight:900}
+.scan-list{display:flex;flex-direction:column;gap:4px;padding:0 12px 12px}
+.scan-row{display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg);border-radius:8px;border:1px solid var(--border);cursor:pointer;transition:background .15s}
+.scan-row:hover{background:var(--s2)}
+.scan-row-sym{font-size:12px;font-weight:900;color:var(--text);width:44px;flex-shrink:0}
+.scan-row-bar{flex:1;height:4px;background:var(--border);border-radius:2px;overflow:hidden}
+.scan-row-fill{height:100%;border-radius:2px;transition:width .4s}
+.scan-row-score{font-size:10px;font-weight:800;width:28px;text-align:right;flex-shrink:0}
+.scan-row-signal{font-size:9px;font-weight:800;width:52px;text-align:right;flex-shrink:0}
+.scan-empty{padding:20px;text-align:center;color:var(--muted);font-size:11px}
+.scan-loading{display:flex;align-items:center;gap:8px;padding:14px 12px;color:var(--muted);font-size:11px}
+.deep-scan-btn{width:100%;background:none;border:1.5px solid var(--border2);color:var(--dim);border-radius:8px;padding:9px;font-size:11px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:all .2s;margin-top:4px}
+.deep-scan-btn:hover{border-color:var(--cyan);color:var(--cyan)}
+.deep-scan-btn.running{border-color:var(--cyan);color:var(--cyan);opacity:.7}
+.divider-label{display:flex;align-items:center;gap:8px;margin:10px 0 8px;font-size:9px;font-weight:900;color:var(--muted);text-transform:uppercase;letter-spacing:.12em}
+.divider-label::before,.divider-label::after{content:'';flex:1;height:1px;background:var(--border)}
 @media (max-width:375px){
   .ds-price{font-size:14px}
   .ds-item{padding:7px 7px}
@@ -388,6 +422,20 @@ body{display:flex;flex-direction:column;align-items:center}
 
 <!-- ═══ PANE 0: ANALYZE ═══ -->
 <div class="pane on" id="pane0">
+
+  <!-- ── AUTO SCAN CARD ── -->
+  <div class="scan-card">
+    <div class="scan-header">
+      <div class="scan-title">Auto Scan · Top Trade</div>
+      <button class="scan-refresh" onclick="runAutoScan()">↻ Rescan</button>
+    </div>
+    <div id="auto-scan-body">
+      <div class="scan-loading"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span style="margin-left:4px">Scanning your list…</span></div>
+    </div>
+  </div>
+
+  <!-- ── DIVIDER ── -->
+  <div class="divider-label">On-Demand Analyze</div>
 
   <!-- TICKER INPUT PANEL (scrolls with content) -->
   <div id="ticker-input-panel" style="margin-bottom:10px">
@@ -709,7 +757,285 @@ var plScenario = 'spike';
 var positions = [];
 var priceCache = {};
 
-// ── INIT (called at bottom after all functions defined) ──
+// ═══════════════════════════════════════════════════════
+//  AUTO SCAN — rule-based, free, scans full tickerList
+// ═══════════════════════════════════════════════════════
+var autoScanResults = [];
+var autoScanRunning = false;
+
+function scoreSignal(d){
+  // d = {signal, chg, rsi, ma20, price, vix}
+  // Returns numeric score 0-10 (higher = stronger trade edge)
+  var bull=0, bear=0;
+  if(d.chg>1) bull+=2; else if(d.chg>0.3) bull+=1; else if(d.chg<-1) bear+=2; else if(d.chg<-0.3) bear+=1;
+  if(d.rsi){ if(d.rsi>60) bull+=1; if(d.rsi<40) bear+=1; if(d.rsi>75) bear+=1; if(d.rsi<25) bull+=1; }
+  if(d.ma20){ if(d.price>d.ma20) bull+=1; else bear+=1; }
+  var dir = Math.max(bull, bear);
+  var signal = bull>=3?'BULLISH':bear>=3?'BEARISH':'NEUTRAL';
+  // Confidence bonus: vix alignment
+  var vix = d.vix || 20;
+  if(signal==='NEUTRAL' && vix>20) dir += 1; // high vix favors neutral/vol strategies
+  if(signal!=='NEUTRAL' && vix<20) dir += 1; // low vix + trend = stronger edge
+  return { score: Math.min(dir, 10), signal: signal, bull: bull, bear: bear };
+}
+
+function autoScanAction(signal){
+  if(signal==='BULLISH') return 'Bull Call Spread';
+  if(signal==='BEARISH') return 'Bear Put Spread';
+  return 'Iron Condor';
+}
+
+function autoScanColor(signal){
+  if(signal==='BULLISH') return 'var(--green)';
+  if(signal==='BEARISH') return 'var(--red)';
+  return 'var(--amber)';
+}
+
+function autoScanSignalClass(signal){
+  if(signal==='BULLISH') return 'bull';
+  if(signal==='BEARISH') return 'bear';
+  return 'neutral';
+}
+
+async function runAutoScan(){
+  if(autoScanRunning) return;
+  autoScanRunning = true;
+  var body = document.getElementById('auto-scan-body');
+  if(!body) return;
+
+  var list = tickerList.length ? tickerList : ['SPY','QQQ'];
+  body.innerHTML = '<div class="scan-loading"><span class="dot"></span><span class="dot"></span><span class="dot"></span>'
+    + '<span style="margin-left:4px">Scanning '+list.length+' ticker'+(list.length>1?'s':'')+'…</span></div>';
+
+  var vix = parseFloat((document.getElementById('m-vix')||{}).textContent||0) || 20;
+  var results = [];
+
+  for(var i=0; i<list.length; i++){
+    var sym = list[i];
+    try{
+      var price = 0, chg = 0, closes = [], rsi14 = null, ma20 = null;
+      if(TD_KEY){
+        var q = await cachedFetch('/quote?symbol='+sym, 60000).catch(function(){return null;});
+        var h = await cachedFetch('/time_series?symbol='+sym+'&interval=1day&outputsize=25', 300000).catch(function(){return null;});
+        if(q){ price = parseFloat(q.close||q.price||0); chg = parseFloat(q.percent_change||0); }
+        if(h && h.values) closes = h.values.map(function(v){return parseFloat(v.close);}).reverse();
+        if(closes.length>=15) rsi14 = calcRSI(closes,14);
+        if(closes.length>=20) ma20 = avg(closes.slice(-20));
+      } else {
+        // No key: use cached price from price bar if available
+        price = priceCache[sym] || 0;
+      }
+      var scored = scoreSignal({price:price, chg:chg, rsi:rsi14, ma20:ma20, vix:vix});
+      results.push({
+        sym: sym, price: price, chg: chg, rsi: rsi14, ma20: ma20,
+        score: scored.score, signal: scored.signal, bull: scored.bull, bear: scored.bear,
+        action: autoScanAction(scored.signal),
+        reason: buildAutoScanReason(sym, chg, rsi14, ma20, price, scored)
+      });
+    } catch(e){
+      results.push({sym:sym, price:0, chg:0, score:0, signal:'NEUTRAL', action:'Iron Condor', reason:'Could not fetch data'});
+    }
+  }
+
+  // Sort by score descending
+  results.sort(function(a,b){ return b.score - a.score; });
+  autoScanResults = results;
+  renderAutoScan(results, vix);
+  autoScanRunning = false;
+}
+
+function buildAutoScanReason(sym, chg, rsi, ma20, price, scored){
+  var parts = [];
+  if(Math.abs(chg) > 0.3) parts.push((chg>0?'+':'')+chg.toFixed(1)+'% today');
+  if(rsi){ if(rsi>65) parts.push('RSI '+rsi.toFixed(0)+' overbought'); else if(rsi<35) parts.push('RSI '+rsi.toFixed(0)+' oversold'); else parts.push('RSI '+rsi.toFixed(0)); }
+  if(ma20 && price){ parts.push(price>ma20?'above 20MA':'below 20MA'); }
+  if(!parts.length) parts.push('No key — rule-based estimate');
+  return parts.join(' · ');
+}
+
+function renderAutoScan(results, vix){
+  var body = document.getElementById('auto-scan-body');
+  if(!body) return;
+
+  if(!results.length){
+    body.innerHTML = '<div class="scan-empty">Add tickers to your list to enable auto scan.</div>';
+    return;
+  }
+
+  var top = results[0];
+  var topColor = autoScanColor(top.signal);
+  var topClass = autoScanSignalClass(top.signal);
+  var maxScore = Math.max.apply(null, results.map(function(r){return r.score;})) || 1;
+  var ts = getTradeSettings();
+
+  var html = '<div class="scan-top-pick">';
+
+  // Top pick hero row
+  html += '<div class="scan-pick-row">'
+    + '<div>'
+    + '<div class="scan-pick-sym">'+top.sym+'</div>'
+    + '<div class="scan-pick-action" style="color:'+topColor+'">'+top.action+'</div>'
+    + '<div class="scan-pick-reason">'+top.reason+'</div>'
+    + '</div>'
+    + '<div style="text-align:right">'
+    + '<div class="scan-pick-signal '+topClass+'">'+top.signal+'</div>'
+    + (top.price ? '<div style="font-size:11px;color:var(--dim);margin-top:4px;font-weight:700">'+(top.chg>=0?'+':'')+top.chg.toFixed(2)+'%</div>' : '')
+    + '</div>'
+    + '</div>';
+
+  // Stat boxes
+  html += '<div class="scan-scores">'
+    + '<div class="scan-score-box"><div class="scan-score-lbl">Signal</div><div class="scan-score-val" style="color:'+topColor+'">'+top.signal.charAt(0)+top.signal.slice(1).toLowerCase()+'</div></div>'
+    + '<div class="scan-score-box"><div class="scan-score-lbl">Strength</div><div class="scan-score-val" style="color:var(--accent)">'+top.score+'/10</div></div>'
+    + '<div class="scan-score-box"><div class="scan-score-lbl">VIX</div><div class="scan-score-val" style="color:'+(vix<20?'var(--green)':vix<30?'var(--amber)':'var(--red)')+'">'+vix.toFixed(1)+'</div></div>'
+    + '</div>';
+
+  // CTA buttons
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">'
+    + '<button onclick="launchFromScan(\''+top.sym+'\')" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:9px;font-size:12px;font-weight:900;cursor:pointer">⚡ Full Analysis</button>'
+    + '<button id="deep-scan-btn" class="deep-scan-btn" onclick="runDeepScan(\''+top.sym+'\')">✦ Deep Scan</button>'
+    + '</div>';
+
+  // Deep scan result area
+  html += '<div id="deep-scan-result" style="display:none;margin-top:8px;background:var(--bg);border:1px solid var(--border2);border-radius:8px;padding:10px 12px;font-size:11px;color:var(--dim);line-height:1.7;font-weight:500"></div>';
+
+  html += '</div>';
+
+  // All tickers ranked list
+  if(results.length > 1){
+    html += '<div style="padding:0 12px;margin-bottom:4px"><div style="font-size:8px;font-weight:900;color:var(--muted);text-transform:uppercase;letter-spacing:.12em">All Tickers · Ranked</div></div>';
+    html += '<div class="scan-list">';
+    results.forEach(function(r){
+      var c = autoScanColor(r.signal);
+      var pct = Math.round((r.score/maxScore)*100);
+      html += '<div class="scan-row" onclick="launchFromScan(\''+r.sym+'\')">'
+        + '<div class="scan-row-sym">'+r.sym+'</div>'
+        + '<div class="scan-row-bar"><div class="scan-row-fill" style="width:'+pct+'%;background:'+c+'"></div></div>'
+        + '<div class="scan-row-score" style="color:'+c+'">'+r.score+'</div>'
+        + '<div class="scan-row-signal" style="color:'+c+'">'+r.signal.slice(0,4)+'</div>'
+        + '</div>';
+    });
+    html += '</div>';
+  }
+
+  body.innerHTML = html;
+}
+
+function launchFromScan(sym){
+  currentAnalyzeTicker = sym;
+  renderTickerList();
+  // Scroll to on-demand section
+  var panel = document.getElementById('ticker-input-panel');
+  if(panel) panel.scrollIntoView({behavior:'smooth', block:'start'});
+  // Auto-run analysis
+  setTimeout(runAnalysis, 200);
+}
+
+async function runDeepScan(sym){
+  if(!CLAUDE_KEY){ 
+    var r = document.getElementById('deep-scan-result');
+    if(r){ r.style.display='block'; r.innerHTML='<span style="color:var(--amber)">⚠️ Add Claude key via ⚙ Keys for Deep Scan (AI + sector + peers).</span>'; }
+    return;
+  }
+  var btn = document.getElementById('deep-scan-btn');
+  var result = document.getElementById('deep-scan-result');
+  if(!btn||!result) return;
+  btn.classList.add('running');
+  btn.textContent = '⏳ Deep scanning '+sym+'…';
+  result.style.display = 'block';
+  result.innerHTML = '<div class="ai-loading"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span style="margin-left:6px">Fetching sector + peers + macro…</span></div>';
+
+  // Sector ETF map
+  var sectorMap = {
+    SPY:'XLK', QQQ:'XLK', AAPL:'XLK', MSFT:'XLK', NVDA:'XLK', GOOG:'XLC', META:'XLC',
+    AMZN:'XLY', TSLA:'XLY', JPM:'XLF', BAC:'XLF', GS:'XLF', XOM:'XLE', CVX:'XLE',
+    JNJ:'XLV', PFE:'XLV', UNH:'XLV', DEFAULT:'SPY'
+  };
+  var sectorETF = sectorMap[sym] || sectorMap.DEFAULT;
+
+  // Peer map (2 peers per ticker)
+  var peerMap = {
+    AAPL:['MSFT','GOOG'], MSFT:['AAPL','GOOG'], NVDA:['AMD','INTC'], AMD:['NVDA','INTC'],
+    TSLA:['F','GM'], AMZN:['WMT','SHOP'], META:['SNAP','PINS'], GOOG:['META','MSFT'],
+    JPM:['BAC','GS'], SPY:['QQQ','IWM'], QQQ:['SPY','IWM'], DEFAULT:['SPY','QQQ']
+  };
+  var peers = peerMap[sym] || peerMap.DEFAULT;
+
+  try{
+    var vix = parseFloat((document.getElementById('m-vix')||{}).textContent||0) || 20;
+    var fetchedData = {};
+
+    if(TD_KEY){
+      // Fetch sym + sector ETF + 2 peers in parallel
+      var syms = [sym, sectorETF].concat(peers);
+      var fetches = syms.map(function(s){
+        return cachedFetch('/quote?symbol='+s, 60000).then(function(q){
+          fetchedData[s] = {price: parseFloat(q.close||0), chg: parseFloat(q.percent_change||0)};
+        }).catch(function(){fetchedData[s]={price:0,chg:0};});
+      });
+      // Also fetch history for sym
+      var histFetch = cachedFetch('/time_series?symbol='+sym+'&interval=1day&outputsize=25', 300000).catch(function(){return null;});
+      await Promise.all(fetches.concat([histFetch]).map(function(p){ return p.catch ? p.catch(function(){}) : p; }));
+      var hist = await histFetch.catch(function(){return null;});
+      var closes = [];
+      if(hist && hist.values) closes = hist.values.map(function(v){return parseFloat(v.close);}).reverse();
+      var rsi = closes.length>=15 ? calcRSI(closes,14) : null;
+      var ma20v = closes.length>=20 ? avg(closes.slice(-20)) : null;
+      var rv = closes.length>=22 ? calcRV(closes.slice(-22)) : null;
+      fetchedData[sym].rsi = rsi;
+      fetchedData[sym].ma20 = ma20v;
+      fetchedData[sym].rv = rv;
+    }
+
+    var d = fetchedData[sym] || {};
+    var sectorD = fetchedData[sectorETF] || {};
+    var peer0 = fetchedData[peers[0]] || {};
+    var peer1 = fetchedData[peers[1]] || {};
+
+    var ts = getTradeSettings();
+    var prompt = 'You are a professional options trader doing a deep scan. Analyze this setup and give a concise 3-4 sentence trading view. Be direct and specific — name the exact strategy, strikes context, and key risk.\n\n'
+      + 'Ticker: '+sym+'\n'
+      + 'Price: $'+(d.price||'N/A')+' | Change: '+(d.chg||0).toFixed(2)+'% today\n'
+      + 'RSI-14: '+(d.rsi?d.rsi.toFixed(1):'N/A')+'\n'
+      + 'vs 20MA: '+(d.ma20&&d.price?(d.price>d.ma20?'Above (+':('Below ('))+((d.price-d.ma20)/d.ma20*100).toFixed(1)+'%)':'N/A')+'\n'
+      + '30d Realized Vol: '+(d.rv?d.rv.toFixed(1)+'%':'N/A')+'\n\n'
+      + 'Sector ETF ('+sectorETF+'): '+(sectorD.chg||0).toFixed(2)+'% today\n'
+      + 'Peer '+peers[0]+': '+(peer0.chg||0).toFixed(2)+'% | Peer '+peers[1]+': '+(peer1.chg||0).toFixed(2)+'%\n'
+      + 'VIX: '+vix.toFixed(1)+' ('+(vix<15?'Very calm':vix<20?'Calm':vix<25?'Elevated':vix<35?'High':'Extreme')+')\n\n'
+      + 'Capital: $'+ts.capital+' | Risk: '+ts.risk+'% | DTE: '+ts.dte+'d\n\n'
+      + 'Answer: What is the single best options trade on '+sym+' right now given sector trend and peer action? Why?';
+
+    aiCall(prompt, 400, function(text){
+      result.innerHTML = '<div style="font-size:9px;font-weight:900;color:var(--cyan);text-transform:uppercase;letter-spacing:.12em;margin-bottom:6px">✦ Deep Scan · '+sym+' + Sector + Peers</div>'
+        + text.replace(/\*\*(.*?)\*\*/g,'<strong style="color:var(--text)">$1</strong>').replace(/\n/g,'<br>');
+      btn.classList.remove('running');
+      btn.textContent = '✦ Deep Scan';
+    }, function(err){
+      result.innerHTML = '<span style="color:var(--red)">Error: '+err+'</span>';
+      btn.classList.remove('running');
+      btn.textContent = '✦ Deep Scan';
+    });
+
+  } catch(e){
+    result.innerHTML = '<span style="color:var(--red)">Error: '+e.message+'</span>';
+    btn.classList.remove('running');
+    btn.textContent = '✦ Deep Scan';
+  }
+}
+
+// ── HOOK: re-scan when ticker list changes ──
+var _origRenderTickerList = null;
+function _patchTickerListRender(){
+  _origRenderTickerList = renderTickerList;
+  renderTickerList = function(){
+    _origRenderTickerList();
+    // Debounce: re-scan 800ms after list changes
+    clearTimeout(window._scanDebounce);
+    window._scanDebounce = setTimeout(runAutoScan, 800);
+  };
+}
+
+// ── appInit ──
 function appInit(){
   CLAUDE_KEY = localStorage.getItem('se_claude') || '';
   TD_KEY = localStorage.getItem('se_td') || '';
@@ -727,9 +1053,12 @@ function appInit(){
   renderPortfolio();
   renderBtPortfolioPills();
   initTickerList();
+  _patchTickerListRender();
   // Update mood panel after a short delay to let prices populate
   setTimeout(updateMoodPanel, 1500);
   setTimeout(updateMoodPanel, 4000);
+  // Auto scan after prices have a chance to load
+  setTimeout(runAutoScan, 2200);
 }
 
 // ── SETTINGS ──
@@ -934,6 +1263,8 @@ function addTicker(){
   currentAnalyzeTicker = v;
   document.getElementById('sig-inp').value = '';
   renderTickerList();
+  // Also immediately launch analysis on the new ticker
+  setTimeout(runAnalysis, 300);
 }
 
 function removeTicker(sym){
