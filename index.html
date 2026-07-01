@@ -273,28 +273,7 @@ body{display:flex;flex-direction:column;align-items:center}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 .fade-in{animation:fadeIn .3s ease}
 
-/* ── AUTO SCAN ── */
-.scan-card{background:var(--s1);border:1.5px solid var(--border2);border-radius:12px;margin-bottom:8px;overflow:hidden}
-.scan-header{display:flex;align-items:center;justify-content:space-between;padding:10px 12px 8px}
-.scan-title{font-size:9px;font-weight:900;color:var(--accent);text-transform:uppercase;letter-spacing:.14em;display:flex;align-items:center;gap:5px}
-.scan-title::before{content:'';width:5px;height:5px;background:var(--accent);border-radius:50%}
-.scan-refresh{background:none;border:1px solid var(--border2);color:var(--muted);border-radius:6px;padding:3px 9px;font-size:10px;font-weight:700;cursor:pointer;transition:all .15s}
-.scan-refresh:hover{border-color:var(--accent);color:var(--accent)}
-.scan-top-pick{padding:0 12px 12px}
-.scan-pick-row{display:flex;align-items:center;justify-content:space-between;background:var(--s2);border-radius:10px;padding:10px 12px;margin-bottom:6px;border:1.5px solid var(--border2)}
-.scan-pick-sym{font-size:20px;font-weight:900;color:var(--text);letter-spacing:-.5px}
-.scan-pick-signal{font-size:10px;font-weight:800;padding:3px 8px;border-radius:5px;text-transform:uppercase;letter-spacing:.06em}
-.scan-pick-signal.bull{background:var(--gbg);color:var(--green);border:1px solid var(--gbd)}
-.scan-pick-signal.bear{background:var(--rbg);color:var(--red);border:1px solid var(--rbd)}
-.scan-pick-signal.neutral{background:var(--abg);color:var(--amber);border:1px solid var(--abd)}
-.scan-pick-action{font-size:13px;font-weight:900;color:var(--text);margin-top:3px}
-.scan-pick-reason{font-size:10px;color:var(--muted);margin-top:2px;font-weight:500;line-height:1.4}
-.scan-scores{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-bottom:8px}
-.scan-score-box{background:var(--bg);border-radius:8px;padding:7px 6px;text-align:center;border:1px solid var(--border)}
-.scan-score-lbl{font-size:8px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px}
-.scan-score-val{font-size:13px;font-weight:900}
-.scan-empty{padding:20px;text-align:center;color:var(--muted);font-size:11px}
-.scan-loading{display:flex;align-items:center;gap:8px;padding:14px 12px;color:var(--muted);font-size:11px}
+/* ── AUTO SCAN (pill coloring only now — card UI removed) ── */
 .deep-scan-btn{width:100%;background:none;border:1.5px solid var(--border2);color:var(--dim);border-radius:8px;padding:9px;font-size:11px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:all .2s;margin-top:4px}
 .deep-scan-btn:hover{border-color:var(--cyan);color:var(--cyan)}
 .deep-scan-btn.running{border-color:var(--cyan);color:var(--cyan);opacity:.7}
@@ -415,19 +394,12 @@ body{display:flex;flex-direction:column;align-items:center}
 <!-- ═══ PANE 0: ANALYZE ═══ -->
 <div class="pane on" id="pane0">
 
-  <!-- ── AUTO SCAN CARD ── -->
-  <div class="scan-card">
-    <div class="scan-header">
-      <div class="scan-title">Auto Scan · Top Trade</div>
-      <button class="scan-refresh" onclick="runAutoScan()">↻ Rescan</button>
-    </div>
-    <div id="auto-scan-body">
-      <div class="scan-loading"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span style="margin-left:4px">Scanning your list…</span></div>
-    </div>
+  <!-- ── DIVIDER (with inline rescan) ── -->
+  <div class="divider-label">
+    <span>On-Demand Analyze</span>
+    <button id="rescan-btn" onclick="runAutoScan()" title="Refresh scan colors/scores"
+      style="background:none;border:1px solid var(--border2);color:var(--muted);border-radius:6px;padding:2px 8px;font-size:9px;font-weight:800;letter-spacing:.06em;cursor:pointer;text-transform:uppercase;white-space:nowrap;flex:none">↻ Rescan</button>
   </div>
-
-  <!-- ── DIVIDER ── -->
-  <div class="divider-label">On-Demand Analyze</div>
 
   <!-- TICKER INPUT PANEL (scrolls with content) -->
   <div id="ticker-input-panel" style="margin-bottom:10px">
@@ -464,6 +436,9 @@ body{display:flex;flex-direction:column;align-items:center}
         style="background:var(--accent);color:#fff;border-radius:10px;padding:0 18px;font-size:15px;font-weight:900;border:none;height:44px;flex-shrink:0;white-space:nowrap"
         ontouchstart="" onmousedown="this.style.opacity='.8'" onmouseup="this.style.opacity='1'">GO →</button>
     </div>
+    <!-- Deep Scan — runs on whichever ticker pill is currently selected -->
+    <button id="deep-scan-btn" class="deep-scan-btn" onclick="runDeepScanSelected()" style="margin-top:8px">✦ Deep Scan</button>
+    <div id="deep-scan-result" style="display:none;margin-top:8px;background:var(--bg);border:1px solid var(--border2);border-radius:8px;padding:10px 12px;font-size:11px;color:var(--dim);line-height:1.7;font-weight:500"></div>
   </div>
 
   <!-- LANDING VIEW -->
@@ -793,30 +768,21 @@ function scoreSignal(d){
   return {score:Math.min(dir,10), signal:signal, bull:bull, bear:bear};
 }
 
-function autoScanAction(signal){
-  return signal==='BULLISH'?'Bull Call Spread':signal==='BEARISH'?'Bear Put Spread':'Iron Condor';
-}
 function autoScanColor(signal){
   return signal==='BULLISH'?'var(--green)':signal==='BEARISH'?'var(--red)':'var(--amber)';
-}
-function autoScanSignalClass(signal){
-  return signal==='BULLISH'?'bull':signal==='BEARISH'?'bear':'neutral';
 }
 
 async function runAutoScan(){
   if(autoScanRunning) return;
   autoScanRunning=true;
-  var body=document.getElementById('auto-scan-body');
-  if(!body){ autoScanRunning=false; return; }
+  setRescanBtnBusy(true);
 
   var list=(tickerList.length?tickerList:['SPY','QQQ']);
+  var vix=parseFloat((document.getElementById('m-vix')||{}).textContent||'0')||20;
+  var results=[];
 
   // If no TD key, do a fast rule-based scan using cached price bar data only
   if(!TD_KEY){
-    body.innerHTML='<div class="scan-loading"><span style="color:var(--accent)">↻</span>'
-      +'<span style="margin-left:6px;font-size:11px;color:var(--muted)">Scanning with live prices…</span></div>';
-    var vix=parseFloat((document.getElementById('m-vix')||{}).textContent||'0')||20;
-    var results=[];
     // Wait briefly for price bar to populate
     await new Promise(function(r){setTimeout(r,500);});
     list.forEach(function(sym){
@@ -826,23 +792,17 @@ async function runAutoScan(){
       var chgTxt=chgEl?chgEl.textContent.replace('%','').replace('+',''):'0';
       var chg=parseFloat(chgTxt)||0;
       var scored=scoreSignal({price:price,chg:chg,rsi:null,ma20:null,vix:vix});
-      var r={sym:sym,price:price,chg:chg,rsi:null,ma20:null,score:scored.score,signal:scored.signal,action:autoScanAction(scored.signal),reason:buildAutoScanReason(chg,null,null,price,scored)};
+      var r={sym:sym,price:price,chg:chg,rsi:null,ma20:null,score:scored.score,signal:scored.signal};
       results.push(r);
       colorOnePill(sym, r.signal, r.score); // color immediately
     });
     results.sort(function(a,b){return b.score-a.score;});
     autoScanResults=results;
-    renderAutoScan(results,vix);
     renderTickerList(); // full refresh so all pills reflect final colors/scores
     autoScanRunning=false;
+    setRescanBtnBusy(false);
     return;
   }
-
-  body.innerHTML='<div class="scan-loading"><span style="color:var(--accent)">↻</span>'
-    +'<span style="margin-left:6px;font-size:11px;color:var(--muted)">Scanning '+list.length+' ticker'+(list.length>1?'s':'')+'…</span></div>';
-
-  var vix=parseFloat((document.getElementById('m-vix')||{}).textContent||'0')||20;
-  var results=[];
 
   for(var i=0;i<list.length;i++){
     var sym=list[i];
@@ -855,85 +815,27 @@ async function runAutoScan(){
       if(closes.length>=15) rsi14=calcRSI(closes,14);
       if(closes.length>=20) ma20=avg(closes.slice(-20));
       var scored=scoreSignal({price:price,chg:chg,rsi:rsi14,ma20:ma20,vix:vix});
-      var r={sym:sym,price:price,chg:chg,rsi:rsi14,ma20:ma20,score:scored.score,signal:scored.signal,action:autoScanAction(scored.signal),reason:buildAutoScanReason(chg,rsi14,ma20,price,scored)};
+      var r={sym:sym,price:price,chg:chg,rsi:rsi14,ma20:ma20,score:scored.score,signal:scored.signal};
       results.push(r);
       colorOnePill(sym, r.signal, r.score); // color as soon as this ticker is done
     }catch(e){
-      results.push({sym:sym,price:0,chg:0,score:0,signal:'NEUTRAL',action:'Iron Condor',reason:'Rate limit — retry in 1 min'});
+      results.push({sym:sym,price:0,chg:0,score:0,signal:'NEUTRAL'});
     }
   }
 
   results.sort(function(a,b){return b.score-a.score;});
   autoScanResults=results;
-  renderAutoScan(results,vix);
   renderTickerList(); // full refresh so all pills reflect final colors/scores
   autoScanRunning=false;
+  setRescanBtnBusy(false);
 }
 
-function buildAutoScanReason(chg,rsi,ma20,price,scored){
-  var parts=[];
-  if(Math.abs(chg)>0.3) parts.push((chg>0?'+':'')+chg.toFixed(1)+'% today');
-  if(rsi){ if(rsi>65) parts.push('RSI '+rsi.toFixed(0)+' high'); else if(rsi<35) parts.push('RSI '+rsi.toFixed(0)+' low'); else parts.push('RSI '+rsi.toFixed(0)); }
-  if(ma20&&price) parts.push(price>ma20?'↑ 20MA':'↓ 20MA');
-  if(!parts.length) parts.push('Rule-based estimate');
-  return parts.join(' · ');
-}
-
-function renderAutoScan(results,vix){
-  var body=document.getElementById('auto-scan-body');
-  if(!body) return;
-  if(!results.length){
-    body.innerHTML='<div class="scan-empty">Add tickers to your list to enable auto scan.</div>';
-    return;
-  }
-  var top=results[0];
-  var topColor=autoScanColor(top.signal);
-  var topClass=autoScanSignalClass(top.signal);
-
-  var html='<div class="scan-top-pick">';
-  // Top pick row
-  html+='<div class="scan-pick-row">'
-    +'<div>'
-    +'<div class="scan-pick-sym">'+top.sym+'</div>'
-    +'<div class="scan-pick-action" style="color:'+topColor+'">'+top.action+'</div>'
-    +'<div class="scan-pick-reason">'+top.reason+'</div>'
-    +'</div>'
-    +'<div style="text-align:right">'
-    +'<div class="scan-pick-signal '+topClass+'">'+top.signal+'</div>'
-    +'<div style="font-size:11px;color:var(--muted);margin-top:4px;font-weight:700">Strength '+top.score+'/10</div>'
-    +(top.price?'<div style="font-size:10px;color:var(--dim);margin-top:2px">'+(top.chg>=0?'+':'')+top.chg.toFixed(2)+'%</div>':'')
-    +'</div>'
-    +'</div>';
-  // Action buttons
-  html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">'
-    +'<button onclick="launchFromScan(\''+top.sym+'\')" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:9px;font-size:12px;font-weight:900;cursor:pointer">⚡ Full Analysis</button>'
-    +'<button id="deep-scan-btn" class="deep-scan-btn" onclick="runDeepScan(\''+top.sym+'\')">✦ Deep Scan</button>'
-    +'</div>';
-  html+='<div id="deep-scan-result" style="display:none;margin-top:8px;background:var(--bg);border:1px solid var(--border2);border-radius:8px;padding:10px 12px;font-size:11px;color:var(--dim);line-height:1.7;font-weight:500"></div>';
-
-  // Score legend only (chips removed — pills below already show scores + colors)
-  html+='<div style="margin-top:10px">'
-    +'<div id="score-legend-toggle" onclick="document.getElementById(\'score-legend-body\').style.display=document.getElementById(\'score-legend-body\').style.display===\'none\'?\'block\':\'none\'" '
-    +'style="font-size:9px;color:var(--muted);cursor:pointer;display:flex;align-items:center;gap:4px;user-select:none">'
-    +'<span style="font-size:10px">ℹ</span> What does the score mean?'
-    +'</div>'
-    +'<div id="score-legend-body" style="display:none;margin-top:6px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 10px">'
-    +'<div style="font-size:9px;font-weight:900;color:var(--accent);text-transform:uppercase;letter-spacing:.1em;margin-bottom:5px">Score Breakdown (out of 10)</div>'
-    +'<div style="display:flex;flex-direction:column;gap:3px;font-size:10px;color:var(--dim)">'
-    +'<div><span style="color:var(--green);font-weight:800">+2</span> Price change &gt;1% today</div>'
-    +'<div><span style="color:var(--green);font-weight:800">+1</span> Price change &gt;0.3% today</div>'
-    +'<div><span style="color:var(--green);font-weight:800">+1</span> RSI above 60 (momentum)</div>'
-    +'<div><span style="color:var(--green);font-weight:800">+1</span> Price above 20-day MA</div>'
-    +'<div><span style="color:var(--green);font-weight:800">+1</span> VIX alignment bonus</div>'
-    +'<div style="margin-top:4px;padding-top:4px;border-top:1px solid var(--border)">'
-    +'<span style="color:var(--red);font-weight:800">1-3</span> Weak &nbsp;·&nbsp; '
-    +'<span style="color:var(--amber);font-weight:800">4-6</span> Moderate &nbsp;·&nbsp; '
-    +'<span style="color:var(--green);font-weight:800">7+</span> Strong'
-    +'</div>'
-    +'</div></div>'
-    +'</div>';
-  html+='</div>';
-  body.innerHTML=html;
+function setRescanBtnBusy(busy){
+  var b=document.getElementById('rescan-btn');
+  if(!b) return;
+  b.textContent = busy ? '↻ Scanning…' : '↻ Rescan';
+  b.disabled = busy;
+  b.style.opacity = busy ? '.6' : '1';
 }
 
 // Color a single pill immediately as its scan result arrives
@@ -959,74 +861,21 @@ function colorOnePill(sym, signal, score){
   });
 }
 
-function launchFromScan(sym){
-  currentAnalyzeTicker=sym;
-  renderTickerList();
-  var panel=document.getElementById('ticker-input-panel');
-  if(panel) panel.scrollIntoView({behavior:'smooth',block:'start'});
-  setTimeout(runAnalysis,200);
-}
-
-async function runDeepScan(sym){
-  if(!CLAUDE_KEY){
-    var r=document.getElementById('deep-scan-result');
-    if(r){r.style.display='block';r.innerHTML='<span style="color:var(--amber)">⚠️ Add Claude key via ⚙ Keys for Deep Scan (AI + sector + peers).</span>';}
-    return;
-  }
-  var btn=document.getElementById('deep-scan-btn');
-  var result=document.getElementById('deep-scan-result');
-  if(!btn||!result) return;
-  btn.classList.add('running');
-  btn.textContent='⏳ Scanning…';
-  result.style.display='block';
-  result.innerHTML='<div class="ai-loading"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span style="margin-left:6px">Fetching sector + peers + macro…</span></div>';
-
-  var sectorMap={SPY:'XLK',QQQ:'XLK',AAPL:'XLK',MSFT:'XLK',NVDA:'XLK',GOOG:'XLC',META:'XLC',AMZN:'XLY',TSLA:'XLY',JPM:'XLF',BAC:'XLF',GS:'XLF',XOM:'XLE',CVX:'XLE',JNJ:'XLV',PFE:'XLV',UNH:'XLV',DEFAULT:'SPY'};
-  var peerMap={AAPL:['MSFT','GOOG'],MSFT:['AAPL','GOOG'],NVDA:['AMD','INTC'],AMD:['NVDA','INTC'],TSLA:['F','GM'],AMZN:['WMT','SHOP'],META:['SNAP','PINS'],GOOG:['META','MSFT'],JPM:['BAC','GS'],SPY:['QQQ','IWM'],QQQ:['SPY','IWM'],DEFAULT:['SPY','QQQ']};
-  var sectorETF=sectorMap[sym]||sectorMap.DEFAULT;
-  var peers=peerMap[sym]||peerMap.DEFAULT;
-  var vix=parseFloat((document.getElementById('m-vix')||{}).textContent||0)||20;
-  try{
-    var fetchedData={};
-    if(TD_KEY){
-      var syms=[sym,sectorETF].concat(peers);
-      await Promise.all(syms.map(function(s){
-        return scanFetch('/quote?symbol='+s,60000).then(function(q){fetchedData[s]={price:parseFloat(q.close||0),chg:parseFloat(q.percent_change||0)};}).catch(function(){fetchedData[s]={price:0,chg:0};});
-      }));
-      var hist=await scanFetch('/time_series?symbol='+sym+'&interval=1day&outputsize=25',300000).catch(function(){return null;});
-      var closes=hist&&hist.values?hist.values.map(function(v){return parseFloat(v.close);}).reverse():[];
-      fetchedData[sym].rsi=closes.length>=15?calcRSI(closes,14):null;
-      fetchedData[sym].ma20=closes.length>=20?avg(closes.slice(-20)):null;
-      fetchedData[sym].rv=closes.length>=22?calcRV(closes.slice(-22)):null;
-    }
-    var d=fetchedData[sym]||{};
-    var ts=getTradeSettings();
-    var prompt='You are a professional options trader doing a deep scan. Analyze this setup and give a concise 3-4 sentence trading view.\n\n'
-      +'Ticker: '+sym+'\nPrice: $'+(d.price||'N/A')+' | Change: '+(d.chg||0).toFixed(2)+'% today\n'
-      +'RSI-14: '+(d.rsi?d.rsi.toFixed(1):'N/A')+'\nvs 20MA: '+(d.ma20&&d.price?(d.price>d.ma20?'Above':'Below')+' ('+((d.price-d.ma20)/d.ma20*100).toFixed(1)+'%)':'N/A')+'\n'
-      +'30d RV: '+(d.rv?d.rv.toFixed(1)+'%':'N/A')+'\n\n'
-      +'Sector ('+sectorETF+'): '+(( fetchedData[sectorETF]||{}).chg||0).toFixed(2)+'%\n'
-      +'Peer '+peers[0]+': '+((fetchedData[peers[0]]||{}).chg||0).toFixed(2)+'% | Peer '+peers[1]+': '+((fetchedData[peers[1]]||{}).chg||0).toFixed(2)+'%\n'
-      +'VIX: '+vix.toFixed(1)+'\nCapital: $'+ts.capital+' | Risk: '+ts.risk+'% | DTE: '+ts.dte+'d\n\n'
-      +'What is the single best options trade on '+sym+' right now given sector trend and peer action? Be direct and specific.';
-    aiCall(prompt,400,function(text){
-      result.innerHTML='<div style="font-size:9px;font-weight:900;color:var(--accent);text-transform:uppercase;letter-spacing:.12em;margin-bottom:6px">✦ Deep Scan · '+sym+'</div>'
-        +text.replace(/\*\*(.*?)\*\*/g,'<strong style="color:var(--text)">$1</strong>').replace(/\n/g,'<br>');
-      btn.classList.remove('running');btn.textContent='✦ Deep Scan';
-    },function(err){
-      result.innerHTML='<span style="color:var(--red)">'+err+'</span>';
-      btn.classList.remove('running');btn.textContent='✦ Deep Scan';
-    });
-  }catch(e){
-    result.innerHTML='<span style="color:var(--red)">'+e.message+'</span>';
-    btn.classList.remove('running');btn.textContent='✦ Deep Scan';
-  }
-}
-
 // ── Ticker-list select/add/remove should never silently trigger a full rescan.
 // Auto-scan only runs on load, on explicit "Rescan" click, or when the pinned
 // ticker list composition actually changes (add/remove) — see scheduleAutoScan().
 function _patchTickerListRender(){ /* no-op: kept as a stable init hook */ }
+
+// Called by the Deep Scan button under the ticker list — runs on whichever
+// ticker pill is currently selected (see selectListTicker).
+function runDeepScanSelected(){
+  if(!currentAnalyzeTicker){
+    var result=document.getElementById('deep-scan-result');
+    if(result){ result.style.display='block'; result.innerHTML='<span style="color:var(--amber)">Select a ticker above first.</span>'; }
+    return;
+  }
+  runDeepScan(currentAnalyzeTicker);
+}
 
 async function runDeepScan(sym){
   if(!CLAUDE_KEY){ 
@@ -1088,8 +937,9 @@ async function runDeepScan(sym){
         var dirColor=t.direction==='BULLISH'?'var(--green)':t.direction==='BEARISH'?'var(--red)':'var(--amber)';
         var confColor=t.confidence==='High'?'var(--green)':t.confidence==='Medium'?'var(--amber)':'var(--muted)';
         result.innerHTML=
-          // Header
-          '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'
+          // Ticker + header
+          '<div style="font-size:9px;font-weight:900;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px">✦ Deep Scan · '+sym+'</div>'
+          +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'
           +'<div style="font-size:14px;font-weight:900;color:'+dirColor+'">'+t.strategy+'</div>'
           +'<div style="display:flex;gap:5px;align-items:center">'
           +'<span style="font-size:9px;font-weight:800;color:'+dirColor+';background:var(--s2);border:1px solid '+dirColor+';border-radius:4px;padding:2px 6px">'+t.direction+'</span>'
