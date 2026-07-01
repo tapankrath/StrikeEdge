@@ -1527,11 +1527,11 @@ function runAnalysis(){
 
   Promise.all([
     cachedFetch('/quote?symbol='+sym, 60000),
-    cachedFetch('/time_series?symbol='+sym+'&interval=1day&outputsize=35', 300000),
-    cachedFetch('/earnings?symbol='+sym, 3600000).catch(function(){ return null; })
+    cachedFetch('/time_series?symbol='+sym+'&interval=1day&outputsize=35', 300000)
   ])
   .then(function(results){
-    var q = results[0], hist = results[1], earningsData = results[2];
+    var q = results[0], hist = results[1];
+    var earningsData = null; // fetched separately via slow queue below
     var price = parseFloat(q.close||q.price||0);
     var chg = parseFloat(q.percent_change||0);
     priceCache[sym] = price;
@@ -1545,22 +1545,26 @@ function runAnalysis(){
     var iv = rv30 ? rv30 * 1.15 : 18;
     var vix = parseFloat(document.getElementById('m-vix').textContent||0);
 
-    // Parse next earnings date
-    var earningsDate = null, daysToEarnings = null;
-    try{
-      if(earningsData && earningsData.earnings && earningsData.earnings.length){
-        var sorted = earningsData.earnings.filter(function(e){ return e.date; }).sort(function(a,b){ return new Date(a.date)-new Date(b.date); });
-        var future = sorted.filter(function(e){ return new Date(e.date) >= new Date(); });
-        if(future.length){ earningsDate = future[0].date; daysToEarnings = Math.round((new Date(earningsDate)-new Date())/(1000*86400)); }
-      }
-    }catch(ex){}
-
     document.getElementById('results-ticker-lbl').textContent = sym + ' · $' + price.toFixed(2) + ' (' + (chg>=0?'+':'') + chg.toFixed(2) + '%) · Risk $' + (capital * riskPct / 100).toFixed(0) + ' · ' + ts.dte + 'DTE';
 
-    if(!CLAUDE_KEY){
-      var d = buildRuleSignal(sym, price, chg, rsi14, ma20, rv30, iv, vix, daysToEarnings);
-      renderSignalCard(sym, price, chg, rsi14, ma20, rv30, iv, vix, d);
+    // Render metrics now (no earnings yet), then lazy-fetch earnings via slow queue
+    renderOptionsMetrics(price, iv, rv30, vix, ts.dte, null, null);
+    macroFetch('/earnings?symbol='+sym, 3600000).then(function(earningsData){
+      var earningsDate = null, daysToEarnings = null;
+      try{
+        if(earningsData && earningsData.earnings && earningsData.earnings.length){
+          var sorted = earningsData.earnings.filter(function(e){return e.date;}).sort(function(a,b){return new Date(a.date)-new Date(b.date);});
+          var future = sorted.filter(function(e){return new Date(e.date)>=new Date();});
+          if(future.length){ earningsDate=future[0].date; daysToEarnings=Math.round((new Date(earningsDate)-new Date())/(1000*86400)); }
+        }
+      }catch(ex){}
+      // Re-render metrics with earnings data
       renderOptionsMetrics(price, iv, rv30, vix, ts.dte, earningsDate, daysToEarnings);
+    }).catch(function(){});
+
+    if(!CLAUDE_KEY){
+      var d = buildRuleSignal(sym, price, chg, rsi14, ma20, rv30, iv, vix, null);
+      renderSignalCard(sym, price, chg, rsi14, ma20, rv30, iv, vix, d);
       renderRuleFallbackStrategy(sym, price, vix, d);
       return;
     }
@@ -1568,27 +1572,32 @@ function runAnalysis(){
     // Single AI call: signal + strategies together
     sigOut.innerHTML = '<div class="ai-loading"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span style="margin-left:6px;color:var(--muted)">AI analysis running…</span></div>';
 
-    var earningsNote = daysToEarnings!==null ? '\nEarnings in '+daysToEarnings+' days ('+earningsDate+') — consider IV crush risk' : '\nNo earnings in near term';
+    // Pre-compute premium scores so AI gets the same context
+    var ps = calcPremiumScores(sym, price, iv, rv30, vix, rsi14, ma20, chg, null, dte);
+    var preSellScore = ps.sellScore, preBuyScore = ps.buyScore;
+
     var prompt = 'You are a professional options trader. Analyze this setup and return ONLY valid JSON with no text before or after.\n\n'
       + 'Ticker: '+sym+'\n'
-      + 'Price: $'+price.toFixed(2)+' ('+( chg>=0?'+':'')+chg.toFixed(2)+'% today)\n'
+      + 'Price: $'+price.toFixed(2)+' ('+(chg>=0?'+':'')+chg.toFixed(2)+'% today)\n'
       + 'RSI-14: '+(rsi14?rsi14.toFixed(1):'N/A')+'\n'
-      + '20-day MA: '+(ma20?'$'+ma20.toFixed(2)+' (price is '+(price>ma20?'ABOVE':'BELOW')+')':'N/A')+'\n'
-      + '30-day Realized Vol: '+(rv30?rv30.toFixed(1)+'%':'N/A')+'\n'
-      + 'Est IV: '+(iv?iv.toFixed(1)+'%':'N/A')+'\n'
-      + 'IV vs RV spread: '+(rv30?(iv-rv30).toFixed(1)+'% ('+(iv>rv30?'IV RICH — favor selling premium':'IV CHEAP — favor buying')+')'  :'N/A')+'\n'
-      + 'IV Rank (est): '+calcIVRank(iv, rv30, vix)+'%\n'
+      + '20-day MA: '+(ma20?'$'+ma20.toFixed(2)+' (price '+(price>ma20?'ABOVE':'BELOW')+')':'N/A')+'\n'
+      + '30-day RV: '+(rv30?rv30.toFixed(1)+'%':'N/A')+' | Est IV: '+(iv?iv.toFixed(1)+'%':'N/A')+'\n'
+      + 'IV vs RV: '+(rv30?(iv-rv30).toFixed(1)+'% ('+(iv>rv30?'IV RICH→sell premium':'IV CHEAP→buy options')+')'  :'N/A')+'\n'
+      + 'IV Rank (est): '+calcIVRank(iv,rv30,vix)+'% | VIX: '+(vix||'N/A')+'\n'
       + 'Expected Move ('+dte+'DTE): ±$'+(price*(iv/100)*Math.sqrt(dte/365)).toFixed(2)+'\n'
-      + 'VIX: '+(vix||'N/A')+earningsNote+'\n'
-      + 'Capital: $'+capital+' | Risk amt: $'+riskAmt.toFixed(0)+' | DTE: '+dte+' days\n\n'
-      + 'Return ONLY this JSON structure (no extra text). Set top_pick to the 0-based index of the best matching strategy: BULLISH→2 (Bull Call Spread), BEARISH→0 (Bear Put Spread), NEUTRAL→1 (Iron Condor). Override if IV rank or earnings context justifies a different pick (e.g. high IV rank + neutral → Iron Condor; earnings within DTE → Straddle).\n'
-      + '{"signal":"BULLISH","confidence":"High","action":"BUY CALL","reason":"2-3 sentence explanation","iv_regime":"Fair","key_level":'+Math.round(price)+'.0,"stop":'+(Math.round(price*0.98))+'.0,'
-      + '"regime":"neutral_to_bearish","macro_note":"one sentence on market context","top_pick":2,'
+      + 'Sell Premium Score: '+preSellScore+'/8 | Buy Premium Score: '+preBuyScore+'/8\n'
+      + 'Sell signals: '+(ps.sellSignals.join('; ')||'none')+'\n'
+      + 'Buy signals: '+(ps.buySignals.join('; ')||'none')+'\n'
+      + 'Capital: $'+capital+' | Risk: $'+riskAmt.toFixed(0)+' | DTE: '+dte+'d\n\n'
+      + 'Strategy selection rules: Sell Score ≥5 → Iron Condor or Iron Butterfly. Buy Score ≥5 + neutral → Long Straddle/Strangle. Buy Score ≥5 + directional → debit spread. Historical Move > Expected Move → Reverse Iron Condor.\n\n'
+      + 'Return ONLY this JSON (no extra text). top_pick: index of best strategy (0-3).\n'
+      + '{"signal":"BULLISH","confidence":"High","action":"BULL CALL SPREAD","reason":"2-3 sentence explanation referencing IV rank and premium scores","iv_regime":"Fair","key_level":'+Math.round(price)+'.0,"stop":'+(Math.round(price*0.98))+'.0,'
+      + '"regime":"trending_up","macro_note":"one sentence","top_pick":2,'
       + '"strategies":['
-      + '{"name":"Bear Put Spread","legs":"Buy 1 '+sym+' '+Math.round(price)+' Put '+dte+'DTE, Sell 1 '+sym+' '+Math.round(price*0.97)+' Put '+dte+'DTE","est_cost":'+Math.round(riskAmt*0.5)+',"max_profit":'+Math.round(riskAmt*1.5)+',"max_loss":'+Math.round(riskAmt*0.5)+',"win_rate_pct":42,"best_for":"Moderate downside","risk":"Loses full premium if above strike at expiry"},'
-      + '{"name":"Iron Condor","legs":"Sell 1 '+sym+' '+Math.round(price*0.97)+' Put, Buy 1 '+sym+' '+Math.round(price*0.95)+' Put, Sell 1 '+sym+' '+Math.round(price*1.02)+' Call, Buy 1 '+sym+' '+Math.round(price*1.04)+' Call — all '+dte+'DTE","est_cost":'+Math.round(riskAmt*0.6)+',"max_profit":'+Math.round(riskAmt*0.7)+',"max_loss":'+Math.round(riskAmt*0.6)+',"win_rate_pct":58,"best_for":"Range-bound market","risk":"Sharp directional move"},\n'
-      + '{"name":"Bull Call Spread","legs":"Buy 1 '+sym+' '+Math.round(price)+' Call '+dte+'DTE, Sell 1 '+sym+' '+Math.round(price*1.02)+' Call '+dte+'DTE","est_cost":'+Math.round(riskAmt*0.4)+',"max_profit":'+Math.round(riskAmt*1.2)+',"max_loss":'+Math.round(riskAmt*0.4)+',"win_rate_pct":38,"best_for":"Moderate upside bounce","risk":"Loses full premium if below strike"},'
-      + '{"name":"Long Straddle","legs":"Buy 1 '+sym+' '+Math.round(price)+' Call '+dte+'DTE, Buy 1 '+sym+' '+Math.round(price)+' Put '+dte+'DTE","est_cost":'+Math.round(riskAmt*0.8)+',"max_profit":'+Math.round(riskAmt*2.5)+',"max_loss":'+Math.round(riskAmt*0.8)+',"win_rate_pct":35,"best_for":"Big move either direction","risk":"Rapid theta decay if price stays flat"}'
+      + '{"name":"Bear Put Spread","legs":"Buy 1 '+sym+' '+Math.round(price)+' Put '+dte+'DTE, Sell 1 '+sym+' '+Math.round(price*0.97)+' Put '+dte+'DTE","est_cost":'+Math.round(riskAmt*0.5)+',"max_profit":'+Math.round(riskAmt*1.5)+',"max_loss":'+Math.round(riskAmt*0.5)+',"win_rate_pct":42,"best_for":"Bearish + IV fair","risk":"Full loss if above strike"},'
+      + '{"name":"Iron Condor","legs":"Sell '+sym+' '+Math.round(price*0.97)+' Put / Buy '+Math.round(price*0.95)+' Put / Sell '+Math.round(price*1.02)+' Call / Buy '+Math.round(price*1.04)+' Call — '+dte+'DTE","est_cost":'+Math.round(riskAmt*0.5)+',"max_profit":'+Math.round(riskAmt*0.4)+',"max_loss":'+Math.round(riskAmt*0.5)+',"win_rate_pct":58,"best_for":"IV rich, range-bound","risk":"Sharp move beyond wings"},'
+      + '{"name":"Bull Call Spread","legs":"Buy 1 '+sym+' '+Math.round(price)+' Call '+dte+'DTE, Sell 1 '+sym+' '+Math.round(price*1.02)+' Call '+dte+'DTE","est_cost":'+Math.round(riskAmt*0.4)+',"max_profit":'+Math.round(riskAmt*1.2)+',"max_loss":'+Math.round(riskAmt*0.4)+',"win_rate_pct":38,"best_for":"Bullish + IV fair","risk":"Full loss below strike"},'
+      + '{"name":"Long Straddle","legs":"Buy 1 '+sym+' '+Math.round(price)+' Call '+dte+'DTE + Buy 1 '+sym+' '+Math.round(price)+' Put '+dte+'DTE","est_cost":'+Math.round(riskAmt*0.7)+',"max_profit":'+Math.round(riskAmt*2.5)+',"max_loss":'+Math.round(riskAmt*0.7)+',"win_rate_pct":35,"best_for":"IV cheap, big move expected","risk":"Theta decay if flat"}'
       + ']}';
 
     aiCall(prompt, 1400, function(text){
@@ -1596,25 +1605,24 @@ function runAnalysis(){
         var cl = text.split('```json').join('').split('```').join('').trim();
         var st = cl.indexOf('{'), en = cl.lastIndexOf('}');
         var d = JSON.parse(cl.slice(st, en+1));
-        if(d.signal==='BULLISH') d.top_pick = 2;
-        else if(d.signal==='BEARISH') d.top_pick = 0;
-        else d.top_pick = 1;
+        // Enforce top_pick from premium scores (AI may override for good reason)
+        // Attach premium scores so renderSignalCard can show the bars
+        d.premiumScores = ps;
+        d.bestKey = pickStrategyKey(ps, iv, vix);
+        // Sync action to top strategy name
         if(d.strategies && d.strategies[d.top_pick]) {
           d.action = d.strategies[d.top_pick].name.toUpperCase();
         }
         renderSignalCard(sym, price, chg, rsi14, ma20, rv30, iv, vix, d);
-        renderOptionsMetrics(price, iv, rv30, vix, ts.dte, earningsDate, daysToEarnings);
         renderStrategyCards(d, sym, price, riskAmt);
       } catch(e){
-        var d = buildRuleSignal(sym, price, chg, rsi14, ma20, rv30, iv, vix, daysToEarnings);
+        var d = buildRuleSignal(sym, price, chg, rsi14, ma20, rv30, iv, vix, null);
         renderSignalCard(sym, price, chg, rsi14, ma20, rv30, iv, vix, d);
-        renderOptionsMetrics(price, iv, rv30, vix, ts.dte, earningsDate, daysToEarnings);
         renderRuleFallbackStrategy(sym, price, vix, d);
       }
     }, function(err){
-      var d = buildRuleSignal(sym, price, chg, rsi14, ma20, rv30, iv, vix, daysToEarnings);
+      var d = buildRuleSignal(sym, price, chg, rsi14, ma20, rv30, iv, vix, null);
       renderSignalCard(sym, price, chg, rsi14, ma20, rv30, iv, vix, d);
-      renderOptionsMetrics(price, iv, rv30, vix, ts.dte, earningsDate, daysToEarnings);
       renderRuleFallbackStrategy(sym, price, vix, d);
     });
   })
@@ -1623,35 +1631,349 @@ function runAnalysis(){
   });
 }
 
-function buildRuleSignal(sym, price, chg, rsi, ma20, rv, iv, vix){
-  var bull=0, bear=0;
-  if(chg>1) bull+=2; else if(chg>0.3) bull+=1; else if(chg<-1) bear+=2; else if(chg<-0.3) bear+=1;
-  if(rsi){ if(rsi>60) bull+=1; if(rsi<40) bear+=1; if(rsi>75) bear+=1; if(rsi<25) bull+=1; }
-  if(ma20){ if(price>ma20) bull+=1; else bear+=1; }
-  if(bull>=3) return {signal:'BULLISH', action:'BULL CALL SPREAD', confidence:'Medium', reason:'Price momentum positive, holding above key moving averages.', iv_regime:'Fair', key_level:Math.round(price), stop:Math.round(price*0.98), regime:'trending_up', macro_note:'Bullish momentum intact.'};
-  if(bear>=3) return {signal:'BEARISH', action:'BEAR PUT SPREAD', confidence:'Medium', reason:'Price weakness, trading below key levels. Bearish momentum building.', iv_regime:'Fair', key_level:Math.round(price), stop:Math.round(price*1.02), regime:'trending_down', macro_note:'Bearish pressure building.'};
-  return {signal:'NEUTRAL', action:'IRON CONDOR', confidence:'Low', reason:'Mixed signals — no strong directional edge. Elevated vol may favor premium collecting.', iv_regime:'Fair', key_level:Math.round(price), stop:Math.round(price*0.97), regime:'range_bound', macro_note:'Choppy, range-bound conditions.'};
+// ═══════════════════════════════════════════════════════
+//  PREMIUM SCORING ENGINE
+//  Based on: IV High/Low, EM vs Historical, IV Rank,
+//  IV/RV spread, liquidity proxy, earnings proximity
+// ═══════════════════════════════════════════════════════
+
+// Known liquid large-caps (tight bid-ask, high OI)
+var LIQUID_TICKERS = ['SPY','QQQ','AAPL','MSFT','NVDA','AMZN','META','GOOG','GOOGL','TSLA','JPM','BAC','GS','AMD','NFLX','IWM','DIA','XLE','XLK','XLF','XLV','COIN','MSTR'];
+
+function calcPremiumScores(sym, price, iv, rv, vix, rsi, ma20, chg, daysToEarnings, dte){
+  var sellScore = 0, buyScore = 0;
+  var sellSignals = [], buySignals = [];
+  var ivRank = (typeof calcIVRank === 'function') ? calcIVRank(iv, rv, vix) : 50;
+
+  // ── 1. IV Rank (most important) ──
+  if(typeof ivRank === 'number'){
+    if(ivRank > 60){
+      sellScore += 2;
+      sellSignals.push('IV Rank '+ivRank+'% (high → sell premium)');
+    } else if(ivRank < 30){
+      buyScore += 2;
+      buySignals.push('IV Rank '+ivRank+'% (low → buy options)');
+    }
+  }
+
+  // ── 2. IV vs RV spread (EM vs Historical proxy) ──
+  if(iv && rv){
+    var ivRvSpread = iv - rv;
+    var ivRvRatio = iv / rv;
+    if(ivRvSpread > 3 || ivRvRatio > 1.2){
+      sellScore += 2;
+      sellSignals.push('IV '+(ivRvSpread>0?'+':'')+ivRvSpread.toFixed(1)+'% vs RV (IV rich)');
+    } else if(ivRvSpread < -3 || ivRvRatio < 0.9){
+      buyScore += 2;
+      buySignals.push('IV '+ivRvSpread.toFixed(1)+'% vs RV (IV cheap)');
+    }
+  }
+
+  // ── 3. Absolute IV level ──
+  if(iv > 35){
+    sellScore += 1;
+    sellSignals.push('High IV ('+iv.toFixed(1)+'%) → elevated premium');
+  } else if(iv < 18){
+    buyScore += 1;
+    buySignals.push('Low IV ('+iv.toFixed(1)+'%) → cheap options');
+  }
+
+  // ── 4. VIX regime ──
+  if(vix > 25){
+    sellScore += 1;
+    sellSignals.push('VIX '+vix.toFixed(1)+' (elevated → condor edge)');
+  } else if(vix < 15){
+    buyScore += 1;
+    buySignals.push('VIX '+vix.toFixed(1)+' (low → cheap straddles)');
+  }
+
+  // ── 5. Liquidity proxy ──
+  var isLiquid = LIQUID_TICKERS.indexOf((sym||'').toUpperCase()) >= 0 || price > 80;
+  if(isLiquid){
+    sellScore += 1; buyScore += 1;
+    sellSignals.push('High liquidity (tight bid-ask)');
+  }
+
+  // ── 6. Earnings within DTE ──
+  if(daysToEarnings !== null && daysToEarnings <= dte){
+    buyScore += 2;
+    buySignals.push('Earnings in '+daysToEarnings+'d (within DTE → vol event)');
+    sellScore = Math.max(0, sellScore - 1); // risky to sell into earnings
+  }
+
+  // ── 7. Directional momentum ──
+  var bull = 0, bear = 0;
+  if(chg > 1) bull += 2; else if(chg > 0.3) bull += 1;
+  if(chg < -1) bear += 2; else if(chg < -0.3) bear += 1;
+  if(rsi){ if(rsi > 60) bull += 1; if(rsi < 40) bear += 1; if(rsi > 75) bear += 1; if(rsi < 25) bull += 1; }
+  if(ma20 && price){ if(price > ma20) bull += 1; else bear += 1; }
+
+  return {
+    sellScore: Math.min(8, Math.max(0, sellScore)),
+    buyScore:  Math.min(8, Math.max(0, buyScore)),
+    bull: bull,
+    bear: bear,
+    sellSignals: sellSignals,
+    buySignals:  buySignals,
+    ivRank: typeof ivRank === 'number' ? ivRank : 50,
+    ivRvSpread: (iv && rv) ? +(iv - rv).toFixed(1) : null
+  };
 }
 
+// Pick the best strategy key from premium scores + directional bias
+function pickStrategyKey(ps, iv, vix){
+  var sell = ps.sellScore, buy = ps.buyScore;
+  var bull = ps.bull, bear = ps.bear;
+  var isDirectional = Math.abs(bull - bear) >= 3;
+
+  // Strong sell premium signal (5-8)
+  if(sell >= 5 && sell > buy){
+    if(ps.ivRank > 75 && !isDirectional) return 'IRON_BUTTERFLY';
+    return 'IRON_CONDOR';
+  }
+  // Moderate sell + buy is low → condor
+  if(sell >= 3 && sell > buy && !isDirectional) return 'IRON_CONDOR';
+
+  // Strong buy premium (5-8)
+  if(buy >= 5 && buy > sell){
+    if(bull >= 3) return 'BULL_CALL_SPREAD';  // directional + cheap IV
+    if(bear >= 3) return 'BEAR_PUT_SPREAD';
+    if(buy >= 6) return 'LONG_STRADDLE';      // very cheap IV, neutral
+    return 'LONG_STRANGLE';                    // moderately cheap, want lower cost
+  }
+  // Moderate buy + directional → debit spread
+  if(buy >= 3 && buy > sell){
+    if(bull >= 2) return 'BULL_CALL_SPREAD';
+    if(bear >= 2) return 'BEAR_PUT_SPREAD';
+    return 'LONG_STRADDLE';
+  }
+  // Historical move > expected move → Reverse Iron Condor
+  if(ps.ivRvSpread !== null && ps.ivRvSpread < -5) return 'REVERSE_IRON_CONDOR';
+
+  // Directional fallback
+  if(bull >= 3) return 'BULL_CALL_SPREAD';
+  if(bear >= 3) return 'BEAR_PUT_SPREAD';
+  return 'IRON_CONDOR'; // default
+}
+
+// Full strategy library
+function buildStrategyLibrary(sym, price, dte, riskAmt){
+  var sp = Math.round(price);
+  var sp2 = Math.round(price * 1.02);
+  var sp3 = Math.round(price * 1.04);
+  var sp4 = Math.round(price * 0.98);
+  var sp5 = Math.round(price * 0.96);
+  var dteLbl = dte + 'DTE';
+  var r = Math.round(riskAmt);
+  return {
+    IRON_CONDOR: {
+      name:'Iron Condor', icon:'🦅',
+      legs:'Sell '+sp4+' Put / Buy '+sp5+' Put / Sell '+sp2+' Call / Buy '+sp3+' Call — '+dteLbl,
+      est_cost:Math.round(r*0.5), max_profit:Math.round(r*0.4), max_loss:Math.round(r*0.5),
+      win_rate_pct:58,
+      best_for:'IV high, range-bound market (IV Rank >60)',
+      risk:'Sharp move beyond breakevens wipes credit',
+      why:'IV elevated — sell premium, let time decay work for you.'
+    },
+    IRON_BUTTERFLY: {
+      name:'Iron Butterfly', icon:'🦋',
+      legs:'Sell '+sp+' Call / Sell '+sp+' Put / Buy '+sp3+' Call / Buy '+sp5+' Put — '+dteLbl,
+      est_cost:Math.round(r*0.3), max_profit:Math.round(r*0.6), max_loss:Math.round(r*0.3),
+      win_rate_pct:52,
+      best_for:'Very high IV, expecting pin near current price',
+      risk:'Any significant move beyond wings = full loss',
+      why:'IV very rich (Rank >75%) — max premium at ATM strike.'
+    },
+    REVERSE_IRON_CONDOR: {
+      name:'Reverse Iron Condor', icon:'🔄',
+      legs:'Buy '+sp4+' Put / Sell '+sp5+' Put / Buy '+sp2+' Call / Sell '+sp3+' Call — '+dteLbl,
+      est_cost:Math.round(r*0.6), max_profit:Math.round(r*0.5), max_loss:Math.round(r*0.6),
+      win_rate_pct:38,
+      best_for:'Historical move > Expected move (IV cheap vs history)',
+      risk:'Stock stays flat — full debit lost',
+      why:'Historical moves exceed what IV prices in — buy the gap.'
+    },
+    LONG_STRADDLE: {
+      name:'Long Straddle', icon:'⚡',
+      legs:'Buy '+sp+' Call + Buy '+sp+' Put — '+dteLbl,
+      est_cost:Math.round(r*0.7), max_profit:Math.round(r*2.5), max_loss:Math.round(r*0.7),
+      win_rate_pct:35,
+      best_for:'IV cheap, big move expected either direction',
+      risk:'Rapid theta decay if price stays flat',
+      why:'IV low — cheap to buy vol, upside is unlimited.'
+    },
+    LONG_STRANGLE: {
+      name:'Long Strangle', icon:'🎯',
+      legs:'Buy '+sp4+' Put + Buy '+sp2+' Call — '+dteLbl,
+      est_cost:Math.round(r*0.5), max_profit:Math.round(r*2), max_loss:Math.round(r*0.5),
+      win_rate_pct:32,
+      best_for:'Big surprise likely, want lower cost than straddle',
+      risk:'Needs bigger move to profit — farther strikes',
+      why:'Lower cost entry with similar upside to straddle.'
+    },
+    BULL_CALL_SPREAD: {
+      name:'Bull Call Spread', icon:'📈',
+      legs:'Buy '+sp+' Call / Sell '+sp2+' Call — '+dteLbl,
+      est_cost:Math.round(r*0.4), max_profit:Math.round(r*1.2), max_loss:Math.round(r*0.4),
+      win_rate_pct:40,
+      best_for:'Bullish momentum + low-to-mid IV',
+      risk:'Full debit lost if price stalls below strike',
+      why:'Defined risk bullish play — cheaper than long call.'
+    },
+    BEAR_PUT_SPREAD: {
+      name:'Bear Put Spread', icon:'📉',
+      legs:'Buy '+sp+' Put / Sell '+sp4+' Put — '+dteLbl,
+      est_cost:Math.round(r*0.4), max_profit:Math.round(r*1.2), max_loss:Math.round(r*0.4),
+      win_rate_pct:40,
+      best_for:'Bearish momentum + low-to-mid IV',
+      risk:'Full debit lost if price holds above entry',
+      why:'Defined risk bearish play — cheaper than long put.'
+    }
+  };
+}
+
+// Build the ordered list of strategies for display (best first, then ranked alternatives)
+function rankStrategies(bestKey, ps, sym, price, dte, riskAmt){
+  var lib = buildStrategyLibrary(sym, price, dte, riskAmt);
+  // Order: best pick first, then the 2 most relevant alternatives
+  var order = [bestKey];
+  var sell = ps.sellScore, buy = ps.buyScore;
+  // Add relevant alternatives
+  if(bestKey === 'IRON_CONDOR'){ order.push('IRON_BUTTERFLY'); order.push(ps.bull>=ps.bear?'BULL_CALL_SPREAD':'BEAR_PUT_SPREAD'); }
+  else if(bestKey === 'IRON_BUTTERFLY'){ order.push('IRON_CONDOR'); order.push('LONG_STRADDLE'); }
+  else if(bestKey === 'LONG_STRADDLE'){ order.push('LONG_STRANGLE'); order.push('REVERSE_IRON_CONDOR'); }
+  else if(bestKey === 'LONG_STRANGLE'){ order.push('LONG_STRADDLE'); order.push(ps.bull>=ps.bear?'BULL_CALL_SPREAD':'BEAR_PUT_SPREAD'); }
+  else if(bestKey === 'BULL_CALL_SPREAD'){ order.push('LONG_STRADDLE'); order.push('IRON_CONDOR'); }
+  else if(bestKey === 'BEAR_PUT_SPREAD'){ order.push('LONG_STRADDLE'); order.push('IRON_CONDOR'); }
+  else if(bestKey === 'REVERSE_IRON_CONDOR'){ order.push('LONG_STRADDLE'); order.push('LONG_STRANGLE'); }
+  else { order.push('LONG_STRADDLE'); order.push('IRON_CONDOR'); }
+  return order.map(function(k){ return lib[k]; }).filter(Boolean);
+}
+
+// ── UPDATED buildRuleSignal ──
+function buildRuleSignal(sym, price, chg, rsi, ma20, rv, iv, vix, daysToEarnings){
+  var ts = getTradeSettings();
+  var dte = ts ? parseInt(ts.dte)||21 : 21;
+  var riskAmt = ts ? (ts.capital * ts.risk / 100) : 500;
+
+  var ps = calcPremiumScores(sym, price, iv, rv, vix, rsi, ma20, chg, daysToEarnings, dte);
+  var bestKey = pickStrategyKey(ps, iv, vix);
+  var lib = buildStrategyLibrary(sym, price, dte, riskAmt);
+  var best = lib[bestKey];
+
+  // Determine signal from directional + premium scores
+  var signal = ps.bull >= 3 ? 'BULLISH' : ps.bear >= 3 ? 'BEARISH' : 'NEUTRAL';
+  // Override: if sell/buy premium is strong, signal reflects that more than direction
+  if(ps.sellScore >= 5) signal = 'NEUTRAL';
+  if(ps.buyScore >= 5 && ps.bull >= 3) signal = 'BULLISH';
+  if(ps.buyScore >= 5 && ps.bear >= 3) signal = 'BEARISH';
+
+  var confidence = (Math.max(ps.sellScore, ps.buyScore) >= 5) ? 'High'
+    : (Math.max(ps.sellScore, ps.buyScore) >= 3) ? 'Medium' : 'Low';
+
+  // Build reason from top signals
+  var topSignals = (ps.sellScore >= ps.buyScore ? ps.sellSignals : ps.buySignals).slice(0,2);
+  var reason = topSignals.length
+    ? topSignals.join(' · ') + '.'
+    : 'Mixed signals — rule-based estimate.';
+  var macroNote = ps.sellScore >= ps.buyScore
+    ? 'Sell-premium setup: Sell Score '+ps.sellScore+'/8 vs Buy Score '+ps.buyScore+'/8.'
+    : 'Buy-premium setup: Buy Score '+ps.buyScore+'/8 vs Sell Score '+ps.sellScore+'/8.';
+
+  return {
+    signal: signal,
+    action: best ? best.name.toUpperCase() : bestKey.replace(/_/g,' '),
+    confidence: confidence,
+    reason: reason,
+    iv_regime: ps.ivRvSpread > 3 ? 'Rich' : ps.ivRvSpread < -3 ? 'Cheap' : 'Fair',
+    key_level: Math.round(price),
+    stop: Math.round(signal==='BEARISH' ? price*1.02 : price*0.98),
+    regime: ps.sellScore >= ps.buyScore ? 'range_bound' : signal === 'BULLISH' ? 'trending_up' : signal === 'BEARISH' ? 'trending_down' : 'volatile',
+    macro_note: macroNote,
+    premiumScores: ps,
+    bestKey: bestKey
+  };
+}
+
+// ── UPDATED renderSignalCard — adds premium score bar ──
 function renderSignalCard(sym, price, chg, rsi, ma20, rv, iv, vix, d){
   var cls = d.signal==='BULLISH'?'bull':d.signal==='BEARISH'?'bear':'neutral';
   var color = cls==='bull'?'var(--green)':cls==='bear'?'var(--red)':'var(--amber)';
-  var ivSpread = iv && rv ? (iv - rv).toFixed(1) : null;
+  var ivSpread = iv && rv ? +(iv - rv).toFixed(1) : null;
   var ivReg = d.iv_regime || (ivSpread>3?'Rich':ivSpread<-3?'Cheap':'Fair');
+  var ps = d.premiumScores;
   var out = document.getElementById('sig-out');
+
+  // Premium score bars
+  var premiumHtml = '';
+  if(ps){
+    var sellW = Math.round((ps.sellScore/8)*100);
+    var buyW  = Math.round((ps.buyScore/8)*100);
+    var sellColor = ps.sellScore >= 5 ? 'var(--green)' : ps.sellScore >= 3 ? 'var(--amber)' : 'var(--border2)';
+    var buyColor  = ps.buyScore  >= 5 ? 'var(--accent)' : ps.buyScore  >= 3 ? 'var(--amber)' : 'var(--border2)';
+    premiumHtml =
+      '<div style="background:var(--s1);border:1px solid var(--border2);border-radius:10px;padding:10px 12px;margin-bottom:8px">'
+      +'<div style="font-size:8px;font-weight:900;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;margin-bottom:8px">Premium Scoring</div>'
+      +'<div style="display:flex;flex-direction:column;gap:6px">'
+      // Sell bar
+      +'<div style="display:flex;align-items:center;gap:8px">'
+      +'<div style="font-size:9px;font-weight:800;color:var(--dim);width:72px;flex-shrink:0">Sell Premium</div>'
+      +'<div style="flex:1;height:6px;background:var(--border);border-radius:3px;overflow:hidden">'
+      +'<div style="height:100%;width:'+sellW+'%;background:'+sellColor+';border-radius:3px;transition:width .4s"></div></div>'
+      +'<div style="font-size:10px;font-weight:900;color:'+sellColor+';width:28px;text-align:right">'+ps.sellScore+'/8</div>'
+      +(ps.sellScore >= ps.buyScore && ps.sellScore >= 3 ? '<div style="font-size:8px;font-weight:800;color:'+sellColor+';background:var(--s2);border-radius:4px;padding:1px 5px;flex-shrink:0">▲ BEST</div>' : '')
+      +'</div>'
+      // Buy bar
+      +'<div style="display:flex;align-items:center;gap:8px">'
+      +'<div style="font-size:9px;font-weight:800;color:var(--dim);width:72px;flex-shrink:0">Buy Premium</div>'
+      +'<div style="flex:1;height:6px;background:var(--border);border-radius:3px;overflow:hidden">'
+      +'<div style="height:100%;width:'+buyW+'%;background:'+buyColor+';border-radius:3px;transition:width .4s"></div></div>'
+      +'<div style="font-size:10px;font-weight:900;color:'+buyColor+';width:28px;text-align:right">'+ps.buyScore+'/8</div>'
+      +(ps.buyScore > ps.sellScore && ps.buyScore >= 3 ? '<div style="font-size:8px;font-weight:800;color:'+buyColor+';background:var(--s2);border-radius:4px;padding:1px 5px;flex-shrink:0">▲ BEST</div>' : '')
+      +'</div>'
+      +'</div>'
+      // Top signals
+      +(ps.sellScore >= ps.buyScore && ps.sellSignals.length
+        ? '<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px">'
+          + ps.sellSignals.map(function(s){ return '<span style="font-size:9px;color:var(--green);background:var(--gbg);border-radius:4px;padding:2px 6px">'+s+'</span>'; }).join('')
+          +'</div>' : '')
+      +(ps.buyScore > ps.sellScore && ps.buySignals.length
+        ? '<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px">'
+          + ps.buySignals.map(function(s){ return '<span style="font-size:9px;color:var(--accent);background:var(--s2);border-radius:4px;padding:2px 6px">'+s+'</span>'; }).join('')
+          +'</div>' : '')
+      +'</div>';
+  }
+
   out.innerHTML =
-    '<div class="signal-banner '+cls+' fade-in">' +
-      '<div class="sig-label">'+sym+' Signal · '+d.confidence+' Confidence</div>' +
-      '<div class="sig-action" style="color:'+color+'">'+d.action+'</div>' +
-      '<div class="sig-conf">'+d.signal+' · IV '+ivReg+'</div>' +
-      '<div class="sig-reason">'+d.reason+'</div>' +
-    '</div>' +
-    '<div class="stat-grid">' +
-      statBox('Price', '$'+price.toFixed(2), (chg>=0?'+':'')+chg.toFixed(2)+'%', chg>=0?'var(--green)':'var(--red)') +
-      statBox('RSI-14', rsi?rsi.toFixed(0):'—', rsi>70?'Overbought':rsi<30?'Oversold':'Neutral', rsi>70?'var(--red)':rsi<30?'var(--green)':'var(--dim)') +
-      statBox('vs 20MA', ma20?((price>ma20?'+':'')+((price-ma20)/ma20*100).toFixed(1)+'%'):'—', price>ma20?'Above':'Below', price>ma20?'var(--green)':'var(--red)') +
-    '</div>' +
-    (d.key_level ? '<div class="note-box">📍 Key level: $'+d.key_level+(d.stop?' · Stop: $'+d.stop:'')+'</div>' : '');
+    '<div class="signal-banner '+cls+' fade-in">'
+    +'<div class="sig-label">'+sym+' Signal · '+d.confidence+' Confidence</div>'
+    +'<div class="sig-action" style="color:'+color+'">'+d.action+'</div>'
+    +'<div class="sig-conf">'+d.signal+' · IV '+ivReg+'</div>'
+    +'<div class="sig-reason">'+d.reason+'</div>'
+    +'</div>'
+    + premiumHtml
+    +'<div class="stat-grid">'
+    + statBox('Price', '$'+price.toFixed(2), (chg>=0?'+':'')+chg.toFixed(2)+'%', chg>=0?'var(--green)':'var(--red)')
+    + statBox('RSI-14', rsi?rsi.toFixed(0):'—', rsi>70?'Overbought':rsi<30?'Oversold':'Neutral', rsi>70?'var(--red)':rsi<30?'var(--green)':'var(--dim)')
+    + statBox('vs 20MA', ma20?((price>ma20?'+':'')+((price-ma20)/ma20*100).toFixed(1)+'%'):'—', price>ma20?'Above':'Below', price>ma20?'var(--green)':'var(--red)')
+    +'</div>'
+    +(d.key_level ? '<div class="note-box">📍 Key level: $'+d.key_level+(d.stop?' · Stop: $'+d.stop:'')+'</div>' : '');
+}
+
+// ── UPDATED renderRuleFallbackStrategy — uses full strategy library ──
+function renderRuleFallbackStrategy(sym, price, vix, d){
+  var ts = getTradeSettings();
+  var dte = ts ? parseInt(ts.dte)||21 : 21;
+  var riskAmt = ts ? (ts.capital * ts.risk / 100) : 500;
+  var ps = d.premiumScores;
+  var bestKey = d.bestKey || 'IRON_CONDOR';
+  var strategies = rankStrategies(bestKey, ps || {sellScore:0,buyScore:0,bull:0,bear:0}, sym, price, dte, riskAmt);
+  renderStrategyCards({
+    regime: d.regime,
+    macro_note: (d.macro_note||'') + (ps ? ' Add Claude key for AI-enhanced analysis.' : ''),
+    top_pick: 0,
+    strategies: strategies
+  }, sym, price, riskAmt);
 }
 
 function renderStrategyCards(d, sym, price, riskAmt){
@@ -1679,6 +2001,7 @@ function renderStrategyCards(d, sym, price, riskAmt){
       + '<div class="strat-name">'+s.name+'</div>'
       + '<div class="strat-risk" style="color:var(--accent)">$'+Math.round(s.est_cost)+' risk · '+Math.round(s.win_rate_pct)+'% win rate</div>'
       + '<div class="strat-detail">'+s.legs+'<br><br>'
+      + (s.why ? '💡 <em>'+s.why+'</em><br><br>' : '')
       + '✓ '+s.best_for+'<br>'
       + '⚠ '+s.risk+'</div>'
       + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:10px;font-size:10px">'
@@ -1694,18 +2017,6 @@ function renderStrategyCards(d, sym, price, riskAmt){
   out.innerHTML = html;
 }
 
-function renderRuleFallbackStrategy(sym, price, vix, d){
-  // Simple rule-based fallback strategies when no Claude key
-  var strategies = d.signal==='BULLISH'
-    ? [{name:'Bull Call Spread',legs:'Buy 1 '+sym+' '+Math.round(price)+' Call 7DTE, Sell 1 '+sym+' '+Math.round(price*1.02)+' Call 7DTE',est_cost:200,max_profit:300,max_loss:200,win_rate_pct:40,best_for:'Moderate upside continuation',risk:'Loses full premium if price stalls'},
-       {name:'Long Call',legs:'Buy 1 '+sym+' '+Math.round(price)+' Call 7DTE',est_cost:350,max_profit:999,max_loss:350,win_rate_pct:35,best_for:'Strong breakout move expected',risk:'High theta decay cost'}]
-    : d.signal==='BEARISH'
-    ? [{name:'Bear Put Spread',legs:'Buy 1 '+sym+' '+Math.round(price)+' Put 7DTE, Sell 1 '+sym+' '+Math.round(price*0.97)+' Put 7DTE',est_cost:200,max_profit:300,max_loss:200,win_rate_pct:42,best_for:'Moderate downside continuation',risk:'Loses full premium if price rallies'},
-       {name:'Long Put',legs:'Buy 1 '+sym+' '+Math.round(price)+' Put 7DTE',est_cost:350,max_profit:999,max_loss:350,win_rate_pct:37,best_for:'Sharp selloff expected',risk:'High theta decay cost'}]
-    : [{name:'Iron Condor',legs:'Sell '+sym+' strangle, buy wings — 7DTE',est_cost:300,max_profit:200,max_loss:300,win_rate_pct:55,best_for:'Range-bound conditions',risk:'Sharp directional move beyond breakevens'},
-       {name:'Long Straddle',legs:'Buy 1 '+sym+' '+Math.round(price)+' Call + Put 7DTE',est_cost:400,max_profit:999,max_loss:400,win_rate_pct:35,best_for:'Big move in either direction',risk:'Theta decay if price stays flat'}];
-  renderStrategyCards({regime: d.regime, macro_note: d.macro_note||'Rule-based analysis (add Claude key for AI analysis)', top_pick:0, strategies:strategies}, sym, price, 500);
-}
 function loadSignal(sym){ currentAnalyzeTicker = sym; showTab(0); runAnalysis(); }
 
 function statBox(lbl, val, sub, color){
