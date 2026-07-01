@@ -436,9 +436,6 @@ body{display:flex;flex-direction:column;align-items:center}
         style="background:var(--accent);color:#fff;border-radius:10px;padding:0 18px;font-size:15px;font-weight:900;border:none;height:44px;flex-shrink:0;white-space:nowrap"
         ontouchstart="" onmousedown="this.style.opacity='.8'" onmouseup="this.style.opacity='1'">GO →</button>
     </div>
-    <!-- Deep Scan — runs on whichever ticker pill is currently selected -->
-    <button id="deep-scan-btn" class="deep-scan-btn" onclick="runDeepScanSelected()" style="margin-top:8px">✦ Deep Scan</button>
-    <div id="deep-scan-result" style="display:none;margin-top:8px;background:var(--bg);border:1px solid var(--border2);border-radius:8px;padding:10px 12px;font-size:11px;color:var(--dim);line-height:1.7;font-weight:500"></div>
   </div>
 
   <!-- LANDING VIEW -->
@@ -866,121 +863,6 @@ function colorOnePill(sym, signal, score){
 // ticker list composition actually changes (add/remove) — see scheduleAutoScan().
 function _patchTickerListRender(){ /* no-op: kept as a stable init hook */ }
 
-// Called by the Deep Scan button under the ticker list — runs on whichever
-// ticker pill is currently selected (see selectListTicker).
-function runDeepScanSelected(){
-  if(!currentAnalyzeTicker){
-    var result=document.getElementById('deep-scan-result');
-    if(result){ result.style.display='block'; result.innerHTML='<span style="color:var(--amber)">Select a ticker above first.</span>'; }
-    return;
-  }
-  runDeepScan(currentAnalyzeTicker);
-}
-
-async function runDeepScan(sym){
-  if(!CLAUDE_KEY){ 
-    var r = document.getElementById('deep-scan-result');
-    if(r){ r.style.display='block'; r.innerHTML='<span style="color:var(--amber)">⚠️ Add Claude key via ⚙ Keys for Deep Scan.</span>'; }
-    return;
-  }
-  var btn = document.getElementById('deep-scan-btn');
-  var result = document.getElementById('deep-scan-result');
-  if(!btn||!result) return;
-  btn.classList.add('running');
-  btn.textContent = '⏳ Scanning…';
-  result.style.display = 'block';
-  result.innerHTML = '<div class="ai-loading"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span style="margin-left:6px;font-size:11px;color:var(--muted)">Fetching sector + peers…</span></div>';
-
-  var sectorMap = {SPY:'XLK',QQQ:'XLK',AAPL:'XLK',MSFT:'XLK',NVDA:'XLK',GOOG:'XLC',META:'XLC',AMZN:'XLY',TSLA:'XLY',JPM:'XLF',BAC:'XLF',GS:'XLF',XOM:'XLE',CVX:'XLE',JNJ:'XLV',PFE:'XLV',UNH:'XLV',DEFAULT:'SPY'};
-  var peerMap = {AAPL:['MSFT','GOOG'],MSFT:['AAPL','GOOG'],NVDA:['AMD','INTC'],AMD:['NVDA','INTC'],TSLA:['F','GM'],AMZN:['WMT','SHOP'],META:['SNAP','PINS'],GOOG:['META','MSFT'],JPM:['BAC','GS'],SPY:['QQQ','IWM'],QQQ:['SPY','IWM'],DEFAULT:['SPY','QQQ']};
-  var sectorETF = sectorMap[sym]||sectorMap.DEFAULT;
-  var peers = peerMap[sym]||peerMap.DEFAULT;
-
-  try{
-    var vix = parseFloat((document.getElementById('m-vix')||{}).textContent||0)||20;
-    var fetchedData = {};
-
-    if(TD_KEY){
-      var syms=[sym,sectorETF].concat(peers);
-      var fetches=syms.map(function(s){
-        return scanFetch('/quote?symbol='+s,60000).then(function(q){fetchedData[s]={price:parseFloat(q.close||0),chg:parseFloat(q.percent_change||0)};}).catch(function(){fetchedData[s]={price:0,chg:0};});
-      });
-      var histFetch=scanFetch('/time_series?symbol='+sym+'&interval=1day&outputsize=25',300000).catch(function(){return null;});
-      await Promise.all(fetches.concat([histFetch]).map(function(p){return p.catch?p.catch(function(){}):p;}));
-      var hist=await histFetch.catch(function(){return null;});
-      var closes=hist&&hist.values?hist.values.map(function(v){return parseFloat(v.close);}).reverse():[];
-      fetchedData[sym].rsi=closes.length>=15?calcRSI(closes,14):null;
-      fetchedData[sym].ma20=closes.length>=20?avg(closes.slice(-20)):null;
-      fetchedData[sym].rv=closes.length>=22?calcRV(closes.slice(-22)):null;
-    }
-
-    var d=fetchedData[sym]||{};
-    var sectorD=fetchedData[sectorETF]||{};
-    var peer0=fetchedData[peers[0]]||{};
-    var peer1=fetchedData[peers[1]]||{};
-    var ts=getTradeSettings();
-
-    var prompt='You are a professional options trader. Return ONLY valid JSON — no markdown, no extra text.\n\n'
-      +'Ticker: '+sym+' | Price: $'+(d.price||'N/A')+' | Today: '+(d.chg||0).toFixed(2)+'%\n'
-      +'RSI-14: '+(d.rsi?d.rsi.toFixed(1):'N/A')+' | vs 20MA: '+(d.ma20&&d.price?(d.price>d.ma20?'Above':'Below')+' ('+((d.price-d.ma20)/d.ma20*100).toFixed(1)+'%)':'N/A')+'\n'
-      +'30d RV: '+(d.rv?d.rv.toFixed(1)+'%':'N/A')+' | VIX: '+vix.toFixed(1)+'\n'
-      +'Sector ('+sectorETF+'): '+(sectorD.chg||0).toFixed(2)+'% | '+peers[0]+': '+(peer0.chg||0).toFixed(2)+'% | '+peers[1]+': '+(peer1.chg||0).toFixed(2)+'%\n'
-      +'Capital: $'+ts.capital+' | Risk: '+ts.risk+'% ($'+Math.round(ts.capital*ts.risk/100)+') | DTE: '+ts.dte+'d\n\n'
-      +'Return this exact JSON (fill in real values):\n'
-      +'{"strategy":"Bull Call Spread","direction":"BULLISH","confidence":"High","legs":"Buy $748C / Sell $753C · '+ts.dte+'DTE","cost":"$200","max_profit":"$300","rr":"1:1.5","contracts":"2-3","why":"One sentence: why this strategy given IV and sector context.","edge":"One sentence: the specific edge or catalyst.","risk":"One sentence: the main risk to this trade.","sector_note":"'+sectorETF+' '+(sectorD.chg||0).toFixed(2)+'% confirms / contradicts direction"}';
-
-    aiCall(prompt, 600, function(text){
-      try{
-        var cl=text.split('```json').join('').split('```').join('').trim();
-        var st=cl.indexOf('{'), en=cl.lastIndexOf('}');
-        var t=JSON.parse(cl.slice(st,en+1));
-        var dirColor=t.direction==='BULLISH'?'var(--green)':t.direction==='BEARISH'?'var(--red)':'var(--amber)';
-        var confColor=t.confidence==='High'?'var(--green)':t.confidence==='Medium'?'var(--amber)':'var(--muted)';
-        result.innerHTML=
-          // Ticker + header
-          '<div style="font-size:9px;font-weight:900;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px">✦ Deep Scan · '+sym+'</div>'
-          +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'
-          +'<div style="font-size:14px;font-weight:900;color:'+dirColor+'">'+t.strategy+'</div>'
-          +'<div style="display:flex;gap:5px;align-items:center">'
-          +'<span style="font-size:9px;font-weight:800;color:'+dirColor+';background:var(--s2);border:1px solid '+dirColor+';border-radius:4px;padding:2px 6px">'+t.direction+'</span>'
-          +'<span style="font-size:9px;font-weight:800;color:'+confColor+'">'+t.confidence+' conf</span>'
-          +'</div></div>'
-          // Trade box
-          +'<div style="background:var(--s2);border-radius:8px;padding:10px 12px;margin-bottom:8px">'
-          +'<div style="font-size:12px;font-weight:900;color:var(--text);margin-bottom:8px">'+t.legs+'</div>'
-          +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">'
-          +'<div style="text-align:center"><div style="font-size:8px;color:var(--muted);font-weight:700;text-transform:uppercase;margin-bottom:2px">Cost</div><div style="font-size:13px;font-weight:900;color:var(--red)">'+t.cost+'</div></div>'
-          +'<div style="text-align:center"><div style="font-size:8px;color:var(--muted);font-weight:700;text-transform:uppercase;margin-bottom:2px">Max Profit</div><div style="font-size:13px;font-weight:900;color:var(--green)">'+t.max_profit+'</div></div>'
-          +'<div style="text-align:center"><div style="font-size:8px;color:var(--muted);font-weight:700;text-transform:uppercase;margin-bottom:2px">R:R</div><div style="font-size:13px;font-weight:900;color:var(--text)">'+t.rr+'</div></div>'
-          +'</div>'
-          +'<div style="margin-top:8px;font-size:10px;color:var(--muted);font-weight:600">'+t.contracts+' contracts · '+ts.dte+'DTE</div>'
-          +'</div>'
-          // Why / Edge / Risk
-          +'<div style="display:flex;flex-direction:column;gap:5px">'
-          +'<div style="display:flex;gap:6px;align-items:flex-start"><span style="font-size:10px;color:var(--green);font-weight:900;flex-shrink:0">WHY</span><span style="font-size:11px;color:var(--dim);line-height:1.5">'+t.why+'</span></div>'
-          +'<div style="display:flex;gap:6px;align-items:flex-start"><span style="font-size:10px;color:var(--accent);font-weight:900;flex-shrink:0">EDGE</span><span style="font-size:11px;color:var(--dim);line-height:1.5">'+t.edge+'</span></div>'
-          +'<div style="display:flex;gap:6px;align-items:flex-start"><span style="font-size:10px;color:var(--red);font-weight:900;flex-shrink:0">RISK</span><span style="font-size:11px;color:var(--dim);line-height:1.5">'+t.risk+'</span></div>'
-          +'<div style="font-size:9px;color:var(--muted);margin-top:2px;padding-top:5px;border-top:1px solid var(--border)">'+t.sector_note+'</div>'
-          +'</div>';
-      } catch(e){
-        // Fallback: render as clean text
-        result.innerHTML = renderMarkdown(text);
-      }
-      btn.classList.remove('running');
-      btn.textContent='✦ Deep Scan';
-    }, function(err){
-      result.innerHTML='<span style="color:var(--red)">'+err+'</span>';
-      btn.classList.remove('running');
-      btn.textContent='✦ Deep Scan';
-    });
-
-  }catch(e){
-    result.innerHTML='<span style="color:var(--red)">'+e.message+'</span>';
-    btn.classList.remove('running');
-    btn.textContent='✦ Deep Scan';
-  }
-}
-
 // ── HOOK: re-scan when ticker list changes ──
 
 // ── MARKDOWN → HTML (fallback renderer) ──
@@ -1221,22 +1103,28 @@ function renderTickerList(){
   }
   el.innerHTML = tickerList.map(function(sym){
     var active = sym === currentAnalyzeTicker;
-    // Scan signal color for this pill (set after scan runs)
     var scanRes = (autoScanResults||[]).find(function(r){return r.sym===sym;});
-    var signalBg = scanRes
-      ? (scanRes.signal==='BULLISH'?'rgba(34,197,94,0.14)':scanRes.signal==='BEARISH'?'rgba(239,68,68,0.14)':'rgba(245,158,11,0.14)')
-      : 'var(--s2)';
     var sigColor = scanRes
       ? (scanRes.signal==='BULLISH'?'var(--green)':scanRes.signal==='BEARISH'?'var(--red)':'var(--amber)')
       : 'var(--border2)';
-    var borderColor = active ? 'var(--accent)' : sigColor;
-    var textColor = active ? 'var(--accent)' : (scanRes ? sigColor : 'var(--text)');
-    var bg = active ? 'rgba(255,107,53,0.16)' : signalBg;
+    var signalBg = scanRes
+      ? (scanRes.signal==='BULLISH'?'rgba(34,197,94,0.14)':scanRes.signal==='BEARISH'?'rgba(239,68,68,0.14)':'rgba(245,158,11,0.14)')
+      : 'var(--s2)';
+    // Active: keep signal color but use thicker border + brighter bg
+    var borderColor = sigColor;
+    var borderWidth = active ? '2.5px' : '1.5px';
+    var bg = active
+      ? (scanRes
+          ? (scanRes.signal==='BULLISH'?'rgba(34,197,94,0.26)':scanRes.signal==='BEARISH'?'rgba(239,68,68,0.26)':'rgba(245,158,11,0.26)')
+          : 'rgba(255,107,53,0.16)')
+      : signalBg;
+    var textColor = scanRes ? sigColor : (active ? 'var(--accent)' : 'var(--text)');
     return '<div class="pill-btn" data-sym="'+sym+'" onclick="selectListTicker(\''+sym+'\')" '
-      +'style="display:inline-flex;align-items:center;gap:4px;padding:6px 10px 6px 12px;border-radius:20px;border:2px solid '+borderColor+';background:'+bg+';cursor:pointer;transition:all .15s;white-space:nowrap">'
+      +'style="display:inline-flex;align-items:center;gap:4px;padding:6px 10px 6px 12px;border-radius:20px;border:'+borderWidth+' solid '+borderColor+';background:'+bg+';cursor:pointer;transition:all .15s;white-space:nowrap">'
+      +(active?'<span style="font-size:8px;margin-right:1px">●</span>':'')
       +'<span style="font-size:13px;font-weight:900;color:'+textColor+'">'+sym+'</span>'
       +(scanRes?'<span class="pill-score" style="font-size:8px;font-weight:900;color:'+sigColor+'">'+scanRes.score+'</span>':'')
-      +'<button onclick="event.stopPropagation();removeTicker(\''+sym+'\')" style="background:none;border:none;color:'+(active?'var(--accent)':'var(--muted)')+';font-size:14px;padding:0;line-height:1;cursor:pointer;margin-left:2px">×</button>'
+      +'<button onclick="event.stopPropagation();removeTicker(\''+sym+'\')" style="background:none;border:none;color:var(--muted);font-size:14px;padding:0;line-height:1;cursor:pointer;margin-left:2px">×</button>'
       +'</div>';
   }).join('');
 }
@@ -1319,7 +1207,6 @@ function goHome(){
 function runAnalysis(){
   var sym = currentAnalyzeTicker;
   if(!sym) return;
-  // Switch to results view
   document.getElementById('landing-view').style.display = 'none';
   document.getElementById('results-view').style.display = 'block';
   document.getElementById('results-ticker-lbl').textContent = 'Analyzing ' + sym + '…';
@@ -1337,47 +1224,62 @@ function runAnalysis(){
   }
 
   var ts = getTradeSettings();
-  var capital = ts.capital;
-  var riskPct = ts.risk;
-  var riskAmt = capital * riskPct / 100;
-  var dte = ts.dte;
+  var capital = ts.capital, riskPct = ts.risk, riskAmt = capital * riskPct / 100, dte = ts.dte;
+
+  // Sector ETF + peer maps
+  var sectorMap={SPY:'XLK',QQQ:'XLK',AAPL:'XLK',MSFT:'XLK',NVDA:'XLK',GOOG:'XLC',META:'XLC',AMZN:'XLY',TSLA:'XLY',JPM:'XLF',BAC:'XLF',GS:'XLF',XOM:'XLE',CVX:'XLE',JNJ:'XLV',PFE:'XLV',UNH:'XLV'};
+  var peerMap={AAPL:['MSFT','GOOG'],MSFT:['AAPL','GOOG'],NVDA:['AMD','INTC'],AMD:['NVDA','INTC'],TSLA:['F','GM'],AMZN:['WMT','SHOP'],META:['SNAP','PINS'],GOOG:['META','MSFT'],JPM:['BAC','GS'],SPY:['QQQ','IWM'],QQQ:['SPY','IWM']};
+  var sectorETF = sectorMap[sym] || 'SPY';
+  var peers = peerMap[sym] || ['SPY','QQQ'];
+
+  // Phase 1: main data + sector/peers in parallel (sector via rate-limited queue)
+  var sectorData = {}, peerData = {};
+  var contextFetches = [sectorETF].concat(peers).map(function(s){
+    return scanFetch('/quote?symbol='+s, 60000)
+      .then(function(q){ if(s===sectorETF) sectorData={chg:parseFloat(q.percent_change||0)}; else peerData[s]={chg:parseFloat(q.percent_change||0)}; })
+      .catch(function(){});
+  });
 
   Promise.all([
     cachedFetch('/quote?symbol='+sym, 60000),
-    cachedFetch('/time_series?symbol='+sym+'&interval=1day&outputsize=35', 300000)
+    cachedFetch('/time_series?symbol='+sym+'&interval=1day&outputsize=35', 300000),
+    Promise.all(contextFetches) // sector+peers in parallel (rate-limited internally)
   ])
   .then(function(results){
     var q = results[0], hist = results[1];
-    var earningsData = null; // fetched separately via slow queue below
     var price = parseFloat(q.close||q.price||0);
     var chg = parseFloat(q.percent_change||0);
     priceCache[sym] = price;
 
-    var closes = [];
-    if(hist && hist.values) closes = hist.values.map(function(v){ return parseFloat(v.close); }).reverse();
+    var closes = hist&&hist.values ? hist.values.map(function(v){return parseFloat(v.close);}).reverse() : [];
+    var rsi14 = closes.length>=15 ? calcRSI(closes,14) : null;
+    var ma20  = closes.length>=20 ? avg(closes.slice(-20)) : null;
+    var rv30  = closes.length>=22 ? calcRV(closes.slice(-22)) : null;
+    var iv = rv30 ? rv30*1.15 : 18;
+    var vix = parseFloat((document.getElementById('m-vix')||{}).textContent||0)||20;
 
-    var rsi14 = closes.length>=15 ? calcRSI(closes, 14) : null;
-    var ma20 = closes.length>=20 ? avg(closes.slice(-20)) : null;
-    var rv30 = closes.length>=22 ? calcRV(closes.slice(-22)) : null;
-    var iv = rv30 ? rv30 * 1.15 : 18;
-    var vix = parseFloat(document.getElementById('m-vix').textContent||0);
+    document.getElementById('results-ticker-lbl').textContent = sym+' · $'+price.toFixed(2)+' ('+(chg>=0?'+':'')+chg.toFixed(2)+'%) · Risk $'+riskAmt.toFixed(0)+' · '+dte+'DTE';
 
-    document.getElementById('results-ticker-lbl').textContent = sym + ' · $' + price.toFixed(2) + ' (' + (chg>=0?'+':'') + chg.toFixed(2) + '%) · Risk $' + (capital * riskPct / 100).toFixed(0) + ' · ' + ts.dte + 'DTE';
-
-    // Render metrics now (no earnings yet), then lazy-fetch earnings via slow queue
-    renderOptionsMetrics(price, iv, rv30, vix, ts.dte, null, null);
-    macroFetch('/earnings?symbol='+sym, 3600000).then(function(earningsData){
-      var earningsDate = null, daysToEarnings = null;
+    // Lazy earnings fetch (doesn't block UI)
+    renderOptionsMetrics(price, iv, rv30, vix, dte, null, null);
+    macroFetch('/earnings?symbol='+sym, 3600000).then(function(ed){
+      var earningsDate=null, daysToEarnings=null;
       try{
-        if(earningsData && earningsData.earnings && earningsData.earnings.length){
-          var sorted = earningsData.earnings.filter(function(e){return e.date;}).sort(function(a,b){return new Date(a.date)-new Date(b.date);});
-          var future = sorted.filter(function(e){return new Date(e.date)>=new Date();});
-          if(future.length){ earningsDate=future[0].date; daysToEarnings=Math.round((new Date(earningsDate)-new Date())/(1000*86400)); }
+        if(ed&&ed.earnings&&ed.earnings.length){
+          var future=ed.earnings.filter(function(e){return e.date&&new Date(e.date)>=new Date();}).sort(function(a,b){return new Date(a.date)-new Date(b.date);});
+          if(future.length){earningsDate=future[0].date;daysToEarnings=Math.round((new Date(earningsDate)-new Date())/86400000);}
         }
       }catch(ex){}
-      // Re-render metrics with earnings data
-      renderOptionsMetrics(price, iv, rv30, vix, ts.dte, earningsDate, daysToEarnings);
+      renderOptionsMetrics(price, iv, rv30, vix, dte, earningsDate, daysToEarnings);
     }).catch(function(){});
+
+    // Build context string for prompt
+    var sectorChg = sectorData.chg||0;
+    var peer0chg = (peerData[peers[0]]||{}).chg||0;
+    var peer1chg = (peerData[peers[1]]||{}).chg||0;
+    var sectorLine = sectorETF+' '+(sectorChg>=0?'+':'')+sectorChg.toFixed(2)+'%'
+      +' | '+peers[0]+' '+(peer0chg>=0?'+':'')+peer0chg.toFixed(2)+'%'
+      +' | '+peers[1]+' '+(peer1chg>=0?'+':'')+peer1chg.toFixed(2)+'%';
 
     if(!CLAUDE_KEY){
       var d = buildRuleSignal(sym, price, chg, rsi14, ma20, rv30, iv, vix, null);
@@ -1386,66 +1288,108 @@ function runAnalysis(){
       return;
     }
 
-    // Single AI call: signal + strategies together
     sigOut.innerHTML = '<div class="ai-loading"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span style="margin-left:6px;color:var(--muted)">AI analysis running…</span></div>';
 
-    // Pre-compute premium scores so AI gets the same context
     var ps = calcPremiumScores(sym, price, iv, rv30, vix, rsi14, ma20, chg, null, dte);
-    var preSellScore = ps.sellScore, preBuyScore = ps.buyScore;
 
-    var prompt = 'You are a professional options trader. Analyze this setup and return ONLY valid JSON with no text before or after.\n\n'
-      + 'Ticker: '+sym+'\n'
-      + 'Price: $'+price.toFixed(2)+' ('+(chg>=0?'+':'')+chg.toFixed(2)+'% today)\n'
-      + 'RSI-14: '+(rsi14?rsi14.toFixed(1):'N/A')+'\n'
-      + '20-day MA: '+(ma20?'$'+ma20.toFixed(2)+' (price '+(price>ma20?'ABOVE':'BELOW')+')':'N/A')+'\n'
-      + '30-day RV: '+(rv30?rv30.toFixed(1)+'%':'N/A')+' | Est IV: '+(iv?iv.toFixed(1)+'%':'N/A')+'\n'
-      + 'IV vs RV: '+(rv30?(iv-rv30).toFixed(1)+'% ('+(iv>rv30?'IV RICH→sell premium':'IV CHEAP→buy options')+')'  :'N/A')+'\n'
-      + 'IV Rank (est): '+calcIVRank(iv,rv30,vix)+'% | VIX: '+(vix||'N/A')+'\n'
-      + 'Expected Move ('+dte+'DTE): ±$'+(price*(iv/100)*Math.sqrt(dte/365)).toFixed(2)+'\n'
-      + 'Sell Premium Score: '+preSellScore+'/8 | Buy Premium Score: '+preBuyScore+'/8\n'
-      + 'Sell signals: '+(ps.sellSignals.join('; ')||'none')+'\n'
-      + 'Buy signals: '+(ps.buySignals.join('; ')||'none')+'\n'
-      + 'Capital: $'+capital+' | Risk: $'+riskAmt.toFixed(0)+' | DTE: '+dte+'d\n\n'
-      + 'Strategy selection rules: Sell Score ≥5 → Iron Condor or Iron Butterfly. Buy Score ≥5 + neutral → Long Straddle/Strangle. Buy Score ≥5 + directional → debit spread. Historical Move > Expected Move → Reverse Iron Condor.\n\n'
-      + 'Return ONLY this JSON (no extra text). top_pick: index of best strategy (0-3).\n'
-      + '{"signal":"BULLISH","confidence":"High","action":"BULL CALL SPREAD","reason":"2-3 sentence explanation referencing IV rank and premium scores","iv_regime":"Fair","key_level":'+Math.round(price)+'.0,"stop":'+(Math.round(price*0.98))+'.0,'
-      + '"regime":"trending_up","macro_note":"one sentence","top_pick":2,'
-      + '"strategies":['
-      + '{"name":"Bear Put Spread","legs":"Buy 1 '+sym+' '+Math.round(price)+' Put '+dte+'DTE, Sell 1 '+sym+' '+Math.round(price*0.97)+' Put '+dte+'DTE","est_cost":'+Math.round(riskAmt*0.5)+',"max_profit":'+Math.round(riskAmt*1.5)+',"max_loss":'+Math.round(riskAmt*0.5)+',"win_rate_pct":42,"best_for":"Bearish + IV fair","risk":"Full loss if above strike"},'
-      + '{"name":"Iron Condor","legs":"Sell '+sym+' '+Math.round(price*0.97)+' Put / Buy '+Math.round(price*0.95)+' Put / Sell '+Math.round(price*1.02)+' Call / Buy '+Math.round(price*1.04)+' Call — '+dte+'DTE","est_cost":'+Math.round(riskAmt*0.5)+',"max_profit":'+Math.round(riskAmt*0.4)+',"max_loss":'+Math.round(riskAmt*0.5)+',"win_rate_pct":58,"best_for":"IV rich, range-bound","risk":"Sharp move beyond wings"},'
-      + '{"name":"Bull Call Spread","legs":"Buy 1 '+sym+' '+Math.round(price)+' Call '+dte+'DTE, Sell 1 '+sym+' '+Math.round(price*1.02)+' Call '+dte+'DTE","est_cost":'+Math.round(riskAmt*0.4)+',"max_profit":'+Math.round(riskAmt*1.2)+',"max_loss":'+Math.round(riskAmt*0.4)+',"win_rate_pct":38,"best_for":"Bullish + IV fair","risk":"Full loss below strike"},'
-      + '{"name":"Long Straddle","legs":"Buy 1 '+sym+' '+Math.round(price)+' Call '+dte+'DTE + Buy 1 '+sym+' '+Math.round(price)+' Put '+dte+'DTE","est_cost":'+Math.round(riskAmt*0.7)+',"max_profit":'+Math.round(riskAmt*2.5)+',"max_loss":'+Math.round(riskAmt*0.7)+',"win_rate_pct":35,"best_for":"IV cheap, big move expected","risk":"Theta decay if flat"}'
-      + ']}';
+    var prompt = 'You are a professional options trader. Return ONLY valid JSON — no markdown, no extra text.\n\n'
+      +'Ticker: '+sym+' | Price: $'+price.toFixed(2)+' | Today: '+(chg>=0?'+':'')+chg.toFixed(2)+'%\n'
+      +'RSI-14: '+(rsi14?rsi14.toFixed(1):'N/A')+' | vs 20MA: '+(ma20?(price>ma20?'Above':'Below')+' ('+((price-ma20)/ma20*100).toFixed(1)+'%)':'N/A')+'\n'
+      +'30d RV: '+(rv30?rv30.toFixed(1)+'%':'N/A')+' | Est IV: '+iv.toFixed(1)+'% | VIX: '+vix.toFixed(1)+'\n'
+      +'IV vs RV: '+(rv30?(iv-rv30).toFixed(1)+'% ('+(iv>rv30?'IV rich→sell':'IV cheap→buy')+')':'N/A')+'\n'
+      +'IV Rank est: '+calcIVRank(iv,rv30,vix)+'% | Expected Move: ±$'+(price*(iv/100)*Math.sqrt(dte/365)).toFixed(2)+'\n'
+      +'Sell Premium Score: '+ps.sellScore+'/8 | Buy Premium Score: '+ps.buyScore+'/8\n'
+      +'Sector/Peers: '+sectorLine+'\n'
+      +'Capital: $'+capital+' | Risk: $'+riskAmt.toFixed(0)+' | DTE: '+dte+'d\n\n'
+      +'Rules: SellScore≥5→Iron Condor/Butterfly. BuyScore≥5+neutral→Straddle/Strangle. BuyScore≥5+directional→debit spread. IV cheap+big move→Reverse Iron Condor.\n\n'
+      +'Return this exact JSON:\n'
+      +'{"signal":"BULLISH","confidence":"High","reason":"2 sentences on direction/IV context","iv_regime":"Fair",'
+      +'"key_level":'+Math.round(price)+',"stop":'+Math.round(price*0.98)+','
+      +'"strategy":"Bull Call Spread","legs":"Buy $'+Math.round(price)+'C / Sell $'+Math.round(price*1.02)+'C · '+dte+'DTE",'
+      +'"cost":"$'+Math.round(riskAmt*0.4)+'","max_profit":"$'+Math.round(riskAmt*1.2)+'","rr":"1:1.5","contracts":"2-3",'
+      +'"why":"One sentence: why this strategy given IV rank and sector.","edge":"One sentence: the specific edge.","risk":"One sentence: main risk.",'
+      +'"sector_note":"'+sectorETF+' confirms/contradicts based on data",'
+      +'"top_pick":2,"strategies":['
+      +'{"name":"Bear Put Spread","legs":"Buy $'+Math.round(price)+' Put / Sell $'+Math.round(price*0.97)+' Put · '+dte+'DTE","est_cost":'+Math.round(riskAmt*0.5)+',"max_profit":'+Math.round(riskAmt*1.5)+',"max_loss":'+Math.round(riskAmt*0.5)+',"win_rate_pct":42,"best_for":"Bearish momentum","risk":"Full loss if above strike","why":"Bearish defined-risk play."},'
+      +'{"name":"Iron Condor","legs":"Sell $'+Math.round(price*0.97)+' Put / Buy $'+Math.round(price*0.95)+' Put / Sell $'+Math.round(price*1.02)+' Call / Buy $'+Math.round(price*1.04)+' Call · '+dte+'DTE","est_cost":'+Math.round(riskAmt*0.5)+',"max_profit":'+Math.round(riskAmt*0.4)+',"max_loss":'+Math.round(riskAmt*0.5)+',"win_rate_pct":58,"best_for":"High IV, range-bound","risk":"Sharp move beyond wings","why":"Sell elevated premium."},'
+      +'{"name":"Bull Call Spread","legs":"Buy $'+Math.round(price)+' Call / Sell $'+Math.round(price*1.02)+' Call · '+dte+'DTE","est_cost":'+Math.round(riskAmt*0.4)+',"max_profit":'+Math.round(riskAmt*1.2)+',"max_loss":'+Math.round(riskAmt*0.4)+',"win_rate_pct":40,"best_for":"Bullish + fair IV","risk":"Full loss below strike","why":"Defined-risk bullish play."},'
+      +'{"name":"Long Straddle","legs":"Buy $'+Math.round(price)+' Call + Put · '+dte+'DTE","est_cost":'+Math.round(riskAmt*0.7)+',"max_profit":'+Math.round(riskAmt*2.5)+',"max_loss":'+Math.round(riskAmt*0.7)+',"win_rate_pct":35,"best_for":"Big move, cheap IV","risk":"Theta decay if flat","why":"Buy cheap vol before move."}'
+      +']}';
 
-    aiCall(prompt, 1400, function(text){
+    aiCall(prompt, 1600, function(text){
       try{
-        var cl = text.split('```json').join('').split('```').join('').trim();
-        var st = cl.indexOf('{'), en = cl.lastIndexOf('}');
-        var d = JSON.parse(cl.slice(st, en+1));
-        // Enforce top_pick from premium scores (AI may override for good reason)
-        // Attach premium scores so renderSignalCard can show the bars
+        var cl=text.split('```json').join('').split('```').join('').trim();
+        var d=JSON.parse(cl.slice(cl.indexOf('{'), cl.lastIndexOf('}')+1));
         d.premiumScores = ps;
         d.bestKey = pickStrategyKey(ps, iv, vix);
-        // Sync action to top strategy name
-        if(d.strategies && d.strategies[d.top_pick]) {
-          d.action = d.strategies[d.top_pick].name.toUpperCase();
-        }
+        if(d.strategies&&d.strategies[d.top_pick]) d.action = d.strategies[d.top_pick].name.toUpperCase();
         renderSignalCard(sym, price, chg, rsi14, ma20, rv30, iv, vix, d);
+        renderTopTradeCard(d, sym);
         renderStrategyCards(d, sym, price, riskAmt);
-      } catch(e){
-        var d = buildRuleSignal(sym, price, chg, rsi14, ma20, rv30, iv, vix, null);
-        renderSignalCard(sym, price, chg, rsi14, ma20, rv30, iv, vix, d);
-        renderRuleFallbackStrategy(sym, price, vix, d);
+      }catch(e){
+        var d=buildRuleSignal(sym,price,chg,rsi14,ma20,rv30,iv,vix,null);
+        renderSignalCard(sym,price,chg,rsi14,ma20,rv30,iv,vix,d);
+        renderRuleFallbackStrategy(sym,price,vix,d);
       }
     }, function(err){
-      var d = buildRuleSignal(sym, price, chg, rsi14, ma20, rv30, iv, vix, null);
-      renderSignalCard(sym, price, chg, rsi14, ma20, rv30, iv, vix, d);
-      renderRuleFallbackStrategy(sym, price, vix, d);
+      var d=buildRuleSignal(sym,price,chg,rsi14,ma20,rv30,iv,vix,null);
+      renderSignalCard(sym,price,chg,rsi14,ma20,rv30,iv,vix,d);
+      renderRuleFallbackStrategy(sym,price,vix,d);
     });
   })
   .catch(function(e){
-    document.getElementById('sig-out').innerHTML = '<div class="err-box">Error loading '+sym+': '+e.message+'</div>';
+    document.getElementById('sig-out').innerHTML='<div class="err-box">Error loading '+sym+': '+e.message+'</div>';
   });
+}
+
+// ── RENDER TOP TRADE CARD (clean recommendation from AI response) ──
+function renderTopTradeCard(d, sym){
+  var el = document.getElementById('strat-out');
+  if(!el || !d.strategy) return;
+  var dirColor = d.signal==='BULLISH'?'var(--green)':d.signal==='BEARISH'?'var(--red)':'var(--amber)';
+  var confColor = d.confidence==='High'?'var(--green)':d.confidence==='Medium'?'var(--amber)':'var(--muted)';
+
+  var topCard = '<div class="card fade-in" style="margin-bottom:8px">'
+    // Header row
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'
+    +'<div style="font-size:15px;font-weight:900;color:'+dirColor+'">'+d.strategy+'</div>'
+    +'<div style="display:flex;gap:5px;align-items:center">'
+    +'<span style="font-size:9px;font-weight:900;color:'+dirColor+';background:var(--s2);border:1px solid '+dirColor+';border-radius:4px;padding:2px 7px">'+d.signal+'</span>'
+    +'<span style="font-size:9px;color:'+confColor+';font-weight:700">'+d.confidence+'</span>'
+    +'</div></div>'
+    // Legs
+    +(d.legs?'<div style="font-size:12px;font-weight:800;color:var(--text);background:var(--s2);border-radius:8px;padding:8px 10px;margin-bottom:8px">'+d.legs+'</div>':'')
+    // Stats row
+    +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:8px">'
+    +'<div style="text-align:center;background:var(--s2);border-radius:7px;padding:7px 4px">'
+    +'<div style="font-size:8px;color:var(--muted);font-weight:700;margin-bottom:2px">COST</div>'
+    +'<div style="font-size:14px;font-weight:900;color:var(--red)">'+(d.cost||'—')+'</div>'
+    +'</div>'
+    +'<div style="text-align:center;background:var(--s2);border-radius:7px;padding:7px 4px">'
+    +'<div style="font-size:8px;color:var(--muted);font-weight:700;margin-bottom:2px">MAX PROFIT</div>'
+    +'<div style="font-size:14px;font-weight:900;color:var(--green)">'+(d.max_profit||'—')+'</div>'
+    +'</div>'
+    +'<div style="text-align:center;background:var(--s2);border-radius:7px;padding:7px 4px">'
+    +'<div style="font-size:8px;color:var(--muted);font-weight:700;margin-bottom:2px">R:R</div>'
+    +'<div style="font-size:14px;font-weight:900;color:var(--text)">'+(d.rr||'—')+'</div>'
+    +'</div>'
+    +'</div>'
+    // Contracts
+    +(d.contracts?'<div style="font-size:10px;color:var(--muted);margin-bottom:8px">'+d.contracts+' contracts suggested</div>':'')
+    // Why / Edge / Risk
+    +'<div style="display:flex;flex-direction:column;gap:5px">'
+    +(d.why?'<div style="display:flex;gap:8px"><span style="font-size:9px;font-weight:900;color:var(--green);min-width:32px;padding-top:1px">WHY</span><span style="font-size:11px;color:var(--dim);line-height:1.5">'+d.why+'</span></div>':'')
+    +(d.edge?'<div style="display:flex;gap:8px"><span style="font-size:9px;font-weight:900;color:var(--accent);min-width:32px;padding-top:1px">EDGE</span><span style="font-size:11px;color:var(--dim);line-height:1.5">'+d.edge+'</span></div>':'')
+    +(d.risk?'<div style="display:flex;gap:8px"><span style="font-size:9px;font-weight:900;color:var(--red);min-width:32px;padding-top:1px">RISK</span><span style="font-size:11px;color:var(--dim);line-height:1.5">'+d.risk+'</span></div>':'')
+    +(d.sector_note?'<div style="font-size:9px;color:var(--muted);margin-top:3px;padding-top:5px;border-top:1px solid var(--border)">'+d.sector_note+'</div>':'')
+    +'</div></div>';
+
+  // Alternatives section header
+  var altHtml = d.strategies && d.strategies.length > 1
+    ? '<div style="font-size:8px;font-weight:900;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;margin:10px 0 6px">Alternative Strategies</div>'
+    : '';
+
+  el.innerHTML = topCard + altHtml;
 }
 
 // ═══════════════════════════════════════════════════════
@@ -1836,7 +1780,8 @@ function renderStrategyCards(d, sym, price, riskAmt){
   });
 
   html += '</div></div>';
-  out.innerHTML = html;
+  // Append alternatives after the top trade card (renderTopTradeCard sets the header)
+  out.innerHTML = out.innerHTML + html;
 }
 
 function loadSignal(sym){ currentAnalyzeTicker = sym; showTab(0); runAnalysis(); }
