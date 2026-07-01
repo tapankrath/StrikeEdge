@@ -1118,96 +1118,131 @@ function launchFromScan(sym){
 async function runDeepScan(sym){
   if(!CLAUDE_KEY){ 
     var r = document.getElementById('deep-scan-result');
-    if(r){ r.style.display='block'; r.innerHTML='<span style="color:var(--amber)">⚠️ Add Claude key via ⚙ Keys for Deep Scan (AI + sector + peers).</span>'; }
+    if(r){ r.style.display='block'; r.innerHTML='<span style="color:var(--amber)">⚠️ Add Claude key via ⚙ Keys for Deep Scan.</span>'; }
     return;
   }
   var btn = document.getElementById('deep-scan-btn');
   var result = document.getElementById('deep-scan-result');
   if(!btn||!result) return;
   btn.classList.add('running');
-  btn.textContent = '⏳ Deep scanning '+sym+'…';
+  btn.textContent = '⏳ Scanning…';
   result.style.display = 'block';
-  result.innerHTML = '<div class="ai-loading"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span style="margin-left:6px">Fetching sector + peers + macro…</span></div>';
+  result.innerHTML = '<div class="ai-loading"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span style="margin-left:6px;font-size:11px;color:var(--muted)">Fetching sector + peers…</span></div>';
 
-  // Sector ETF map
-  var sectorMap = {
-    SPY:'XLK', QQQ:'XLK', AAPL:'XLK', MSFT:'XLK', NVDA:'XLK', GOOG:'XLC', META:'XLC',
-    AMZN:'XLY', TSLA:'XLY', JPM:'XLF', BAC:'XLF', GS:'XLF', XOM:'XLE', CVX:'XLE',
-    JNJ:'XLV', PFE:'XLV', UNH:'XLV', DEFAULT:'SPY'
-  };
-  var sectorETF = sectorMap[sym] || sectorMap.DEFAULT;
-
-  // Peer map (2 peers per ticker)
-  var peerMap = {
-    AAPL:['MSFT','GOOG'], MSFT:['AAPL','GOOG'], NVDA:['AMD','INTC'], AMD:['NVDA','INTC'],
-    TSLA:['F','GM'], AMZN:['WMT','SHOP'], META:['SNAP','PINS'], GOOG:['META','MSFT'],
-    JPM:['BAC','GS'], SPY:['QQQ','IWM'], QQQ:['SPY','IWM'], DEFAULT:['SPY','QQQ']
-  };
-  var peers = peerMap[sym] || peerMap.DEFAULT;
+  var sectorMap = {SPY:'XLK',QQQ:'XLK',AAPL:'XLK',MSFT:'XLK',NVDA:'XLK',GOOG:'XLC',META:'XLC',AMZN:'XLY',TSLA:'XLY',JPM:'XLF',BAC:'XLF',GS:'XLF',XOM:'XLE',CVX:'XLE',JNJ:'XLV',PFE:'XLV',UNH:'XLV',DEFAULT:'SPY'};
+  var peerMap = {AAPL:['MSFT','GOOG'],MSFT:['AAPL','GOOG'],NVDA:['AMD','INTC'],AMD:['NVDA','INTC'],TSLA:['F','GM'],AMZN:['WMT','SHOP'],META:['SNAP','PINS'],GOOG:['META','MSFT'],JPM:['BAC','GS'],SPY:['QQQ','IWM'],QQQ:['SPY','IWM'],DEFAULT:['SPY','QQQ']};
+  var sectorETF = sectorMap[sym]||sectorMap.DEFAULT;
+  var peers = peerMap[sym]||peerMap.DEFAULT;
 
   try{
-    var vix = parseFloat((document.getElementById('m-vix')||{}).textContent||0) || 20;
+    var vix = parseFloat((document.getElementById('m-vix')||{}).textContent||0)||20;
     var fetchedData = {};
 
     if(TD_KEY){
-      // Fetch sym + sector ETF + 2 peers in parallel
-      var syms = [sym, sectorETF].concat(peers);
-      var fetches = syms.map(function(s){
-        return cachedFetch('/quote?symbol='+s, 60000).then(function(q){
-          fetchedData[s] = {price: parseFloat(q.close||0), chg: parseFloat(q.percent_change||0)};
-        }).catch(function(){fetchedData[s]={price:0,chg:0};});
+      var syms=[sym,sectorETF].concat(peers);
+      var fetches=syms.map(function(s){
+        return scanFetch('/quote?symbol='+s,60000).then(function(q){fetchedData[s]={price:parseFloat(q.close||0),chg:parseFloat(q.percent_change||0)};}).catch(function(){fetchedData[s]={price:0,chg:0};});
       });
-      // Also fetch history for sym
-      var histFetch = cachedFetch('/time_series?symbol='+sym+'&interval=1day&outputsize=25', 300000).catch(function(){return null;});
-      await Promise.all(fetches.concat([histFetch]).map(function(p){ return p.catch ? p.catch(function(){}) : p; }));
-      var hist = await histFetch.catch(function(){return null;});
-      var closes = [];
-      if(hist && hist.values) closes = hist.values.map(function(v){return parseFloat(v.close);}).reverse();
-      var rsi = closes.length>=15 ? calcRSI(closes,14) : null;
-      var ma20v = closes.length>=20 ? avg(closes.slice(-20)) : null;
-      var rv = closes.length>=22 ? calcRV(closes.slice(-22)) : null;
-      fetchedData[sym].rsi = rsi;
-      fetchedData[sym].ma20 = ma20v;
-      fetchedData[sym].rv = rv;
+      var histFetch=scanFetch('/time_series?symbol='+sym+'&interval=1day&outputsize=25',300000).catch(function(){return null;});
+      await Promise.all(fetches.concat([histFetch]).map(function(p){return p.catch?p.catch(function(){}):p;}));
+      var hist=await histFetch.catch(function(){return null;});
+      var closes=hist&&hist.values?hist.values.map(function(v){return parseFloat(v.close);}).reverse():[];
+      fetchedData[sym].rsi=closes.length>=15?calcRSI(closes,14):null;
+      fetchedData[sym].ma20=closes.length>=20?avg(closes.slice(-20)):null;
+      fetchedData[sym].rv=closes.length>=22?calcRV(closes.slice(-22)):null;
     }
 
-    var d = fetchedData[sym] || {};
-    var sectorD = fetchedData[sectorETF] || {};
-    var peer0 = fetchedData[peers[0]] || {};
-    var peer1 = fetchedData[peers[1]] || {};
+    var d=fetchedData[sym]||{};
+    var sectorD=fetchedData[sectorETF]||{};
+    var peer0=fetchedData[peers[0]]||{};
+    var peer1=fetchedData[peers[1]]||{};
+    var ts=getTradeSettings();
 
-    var ts = getTradeSettings();
-    var prompt = 'You are a professional options trader doing a deep scan. Analyze this setup and give a concise 3-4 sentence trading view. Be direct and specific — name the exact strategy, strikes context, and key risk.\n\n'
-      + 'Ticker: '+sym+'\n'
-      + 'Price: $'+(d.price||'N/A')+' | Change: '+(d.chg||0).toFixed(2)+'% today\n'
-      + 'RSI-14: '+(d.rsi?d.rsi.toFixed(1):'N/A')+'\n'
-      + 'vs 20MA: '+(d.ma20&&d.price?(d.price>d.ma20?'Above (+':('Below ('))+((d.price-d.ma20)/d.ma20*100).toFixed(1)+'%)':'N/A')+'\n'
-      + '30d Realized Vol: '+(d.rv?d.rv.toFixed(1)+'%':'N/A')+'\n\n'
-      + 'Sector ETF ('+sectorETF+'): '+(sectorD.chg||0).toFixed(2)+'% today\n'
-      + 'Peer '+peers[0]+': '+(peer0.chg||0).toFixed(2)+'% | Peer '+peers[1]+': '+(peer1.chg||0).toFixed(2)+'%\n'
-      + 'VIX: '+vix.toFixed(1)+' ('+(vix<15?'Very calm':vix<20?'Calm':vix<25?'Elevated':vix<35?'High':'Extreme')+')\n\n'
-      + 'Capital: $'+ts.capital+' | Risk: '+ts.risk+'% | DTE: '+ts.dte+'d\n\n'
-      + 'Answer: What is the single best options trade on '+sym+' right now given sector trend and peer action? Why?';
+    var prompt='You are a professional options trader. Return ONLY valid JSON — no markdown, no extra text.\n\n'
+      +'Ticker: '+sym+' | Price: $'+(d.price||'N/A')+' | Today: '+(d.chg||0).toFixed(2)+'%\n'
+      +'RSI-14: '+(d.rsi?d.rsi.toFixed(1):'N/A')+' | vs 20MA: '+(d.ma20&&d.price?(d.price>d.ma20?'Above':'Below')+' ('+((d.price-d.ma20)/d.ma20*100).toFixed(1)+'%)':'N/A')+'\n'
+      +'30d RV: '+(d.rv?d.rv.toFixed(1)+'%':'N/A')+' | VIX: '+vix.toFixed(1)+'\n'
+      +'Sector ('+sectorETF+'): '+(sectorD.chg||0).toFixed(2)+'% | '+peers[0]+': '+(peer0.chg||0).toFixed(2)+'% | '+peers[1]+': '+(peer1.chg||0).toFixed(2)+'%\n'
+      +'Capital: $'+ts.capital+' | Risk: '+ts.risk+'% ($'+Math.round(ts.capital*ts.risk/100)+') | DTE: '+ts.dte+'d\n\n'
+      +'Return this exact JSON (fill in real values):\n'
+      +'{"strategy":"Bull Call Spread","direction":"BULLISH","confidence":"High","legs":"Buy $748C / Sell $753C · '+ts.dte+'DTE","cost":"$200","max_profit":"$300","rr":"1:1.5","contracts":"2-3","why":"One sentence: why this strategy given IV and sector context.","edge":"One sentence: the specific edge or catalyst.","risk":"One sentence: the main risk to this trade.","sector_note":"'+sectorETF+' '+(sectorD.chg||0).toFixed(2)+'% confirms / contradicts direction"}';
 
-    aiCall(prompt, 400, function(text){
-      result.innerHTML = '<div style="font-size:9px;font-weight:900;color:var(--cyan);text-transform:uppercase;letter-spacing:.12em;margin-bottom:6px">✦ Deep Scan · '+sym+' + Sector + Peers</div>'
-        + text.replace(/\*\*(.*?)\*\*/g,'<strong style="color:var(--text)">$1</strong>').replace(/\n/g,'<br>');
+    aiCall(prompt, 600, function(text){
+      try{
+        var cl=text.split('```json').join('').split('```').join('').trim();
+        var st=cl.indexOf('{'), en=cl.lastIndexOf('}');
+        var t=JSON.parse(cl.slice(st,en+1));
+        var dirColor=t.direction==='BULLISH'?'var(--green)':t.direction==='BEARISH'?'var(--red)':'var(--amber)';
+        var confColor=t.confidence==='High'?'var(--green)':t.confidence==='Medium'?'var(--amber)':'var(--muted)';
+        result.innerHTML=
+          // Header
+          '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'
+          +'<div style="font-size:14px;font-weight:900;color:'+dirColor+'">'+t.strategy+'</div>'
+          +'<div style="display:flex;gap:5px;align-items:center">'
+          +'<span style="font-size:9px;font-weight:800;color:'+dirColor+';background:var(--s2);border:1px solid '+dirColor+';border-radius:4px;padding:2px 6px">'+t.direction+'</span>'
+          +'<span style="font-size:9px;font-weight:800;color:'+confColor+'">'+t.confidence+' conf</span>'
+          +'</div></div>'
+          // Trade box
+          +'<div style="background:var(--s2);border-radius:8px;padding:10px 12px;margin-bottom:8px">'
+          +'<div style="font-size:12px;font-weight:900;color:var(--text);margin-bottom:8px">'+t.legs+'</div>'
+          +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">'
+          +'<div style="text-align:center"><div style="font-size:8px;color:var(--muted);font-weight:700;text-transform:uppercase;margin-bottom:2px">Cost</div><div style="font-size:13px;font-weight:900;color:var(--red)">'+t.cost+'</div></div>'
+          +'<div style="text-align:center"><div style="font-size:8px;color:var(--muted);font-weight:700;text-transform:uppercase;margin-bottom:2px">Max Profit</div><div style="font-size:13px;font-weight:900;color:var(--green)">'+t.max_profit+'</div></div>'
+          +'<div style="text-align:center"><div style="font-size:8px;color:var(--muted);font-weight:700;text-transform:uppercase;margin-bottom:2px">R:R</div><div style="font-size:13px;font-weight:900;color:var(--text)">'+t.rr+'</div></div>'
+          +'</div>'
+          +'<div style="margin-top:8px;font-size:10px;color:var(--muted);font-weight:600">'+t.contracts+' contracts · '+ts.dte+'DTE</div>'
+          +'</div>'
+          // Why / Edge / Risk
+          +'<div style="display:flex;flex-direction:column;gap:5px">'
+          +'<div style="display:flex;gap:6px;align-items:flex-start"><span style="font-size:10px;color:var(--green);font-weight:900;flex-shrink:0">WHY</span><span style="font-size:11px;color:var(--dim);line-height:1.5">'+t.why+'</span></div>'
+          +'<div style="display:flex;gap:6px;align-items:flex-start"><span style="font-size:10px;color:var(--accent);font-weight:900;flex-shrink:0">EDGE</span><span style="font-size:11px;color:var(--dim);line-height:1.5">'+t.edge+'</span></div>'
+          +'<div style="display:flex;gap:6px;align-items:flex-start"><span style="font-size:10px;color:var(--red);font-weight:900;flex-shrink:0">RISK</span><span style="font-size:11px;color:var(--dim);line-height:1.5">'+t.risk+'</span></div>'
+          +'<div style="font-size:9px;color:var(--muted);margin-top:2px;padding-top:5px;border-top:1px solid var(--border)">'+t.sector_note+'</div>'
+          +'</div>';
+      } catch(e){
+        // Fallback: render as clean text
+        result.innerHTML = renderMarkdown(text);
+      }
       btn.classList.remove('running');
-      btn.textContent = '✦ Deep Scan';
+      btn.textContent='✦ Deep Scan';
     }, function(err){
-      result.innerHTML = '<span style="color:var(--red)">Error: '+err+'</span>';
+      result.innerHTML='<span style="color:var(--red)">'+err+'</span>';
       btn.classList.remove('running');
-      btn.textContent = '✦ Deep Scan';
+      btn.textContent='✦ Deep Scan';
     });
 
-  } catch(e){
-    result.innerHTML = '<span style="color:var(--red)">Error: '+e.message+'</span>';
+  }catch(e){
+    result.innerHTML='<span style="color:var(--red)">'+e.message+'</span>';
     btn.classList.remove('running');
-    btn.textContent = '✦ Deep Scan';
+    btn.textContent='✦ Deep Scan';
   }
 }
 
 // ── HOOK: re-scan when ticker list changes ──
+
+// ── MARKDOWN → HTML (fallback renderer) ──
+function renderMarkdown(text){
+  return text
+    .replace(/^### (.*)/gm,'<div style="font-size:10px;font-weight:900;color:var(--accent);text-transform:uppercase;letter-spacing:.1em;margin:10px 0 4px">$1</div>')
+    .replace(/^## (.*)/gm,'<div style="font-size:12px;font-weight:900;color:var(--text);margin:10px 0 4px">$1</div>')
+    .replace(/^---$/gm,'<div style="border-top:1px solid var(--border);margin:8px 0"></div>')
+    .replace(/\*\*(.*?)\*\*/g,'<strong style="color:var(--text)">$1</strong>')
+    .replace(/\|(.*?)\|/g,function(m,c){
+      if(/^[-| ]+$/.test(c)) return '';
+      var cells=c.split('|').map(function(s){return s.trim();}).filter(Boolean);
+      if(cells.length===2) return '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border)"><span style="font-size:9px;font-weight:800;color:var(--muted)">'+cells[0]+'</span><span style="font-size:11px;color:var(--text);font-weight:700">'+cells[1]+'</span></div>';
+      return m;
+    })
+    .replace(/\n/g,'<br>');
+}
+function togglePremiumDetail(){
+  var el=document.getElementById('premium-detail');
+  var btn=document.getElementById('premium-toggle');
+  if(!el||!btn) return;
+  var hidden=el.style.display==='none';
+  el.style.display=hidden?'block':'none';
+  btn.textContent=hidden?'▲ Hide scoring':'▼ Show scoring';
+}
 
 // ── appInit ──
 function appInit(){
@@ -1912,35 +1947,40 @@ function renderSignalCard(sym, price, chg, rsi, ma20, rv, iv, vix, d){
     var sellColor = ps.sellScore >= 5 ? 'var(--green)' : ps.sellScore >= 3 ? 'var(--amber)' : 'var(--border2)';
     var buyColor  = ps.buyScore  >= 5 ? 'var(--accent)' : ps.buyScore  >= 3 ? 'var(--amber)' : 'var(--border2)';
     premiumHtml =
-      '<div style="background:var(--s1);border:1px solid var(--border2);border-radius:10px;padding:10px 12px;margin-bottom:8px">'
-      +'<div style="font-size:8px;font-weight:900;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;margin-bottom:8px">Premium Scoring</div>'
-      +'<div style="display:flex;flex-direction:column;gap:6px">'
+      '<div style="background:var(--s1);border:1px solid var(--border2);border-radius:10px;padding:8px 12px;margin-bottom:8px">'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0">'
+      +'<div style="font-size:9px;font-weight:700;color:var(--muted)">'
+      +(ps.sellScore>=ps.buyScore && ps.sellScore>=3
+        ? '⬇ Sell Premium <span style="color:var(--green);font-weight:900">'+ps.sellScore+'/8</span> favoured'
+        : ps.buyScore>ps.sellScore && ps.buyScore>=3
+        ? '⬆ Buy Premium <span style="color:var(--accent);font-weight:900">'+ps.buyScore+'/8</span> favoured'
+        : 'Mixed signals · <span style="color:var(--amber)">'+Math.max(ps.sellScore,ps.buyScore)+'/8</span>')
+      +'</div>'
+      +'<button id="premium-toggle" onclick="togglePremiumDetail()" style="background:none;border:none;color:var(--muted);font-size:9px;font-weight:700;cursor:pointer;padding:0">▼ Show scoring</button>'
+      +'</div>'
+      +'<div id="premium-detail" style="display:none;margin-top:8px">'
+      +'<div style="display:flex;flex-direction:column;gap:5px">'
       // Sell bar
       +'<div style="display:flex;align-items:center;gap:8px">'
       +'<div style="font-size:9px;font-weight:800;color:var(--dim);width:72px;flex-shrink:0">Sell Premium</div>'
-      +'<div style="flex:1;height:6px;background:var(--border);border-radius:3px;overflow:hidden">'
-      +'<div style="height:100%;width:'+sellW+'%;background:'+sellColor+';border-radius:3px;transition:width .4s"></div></div>'
+      +'<div style="flex:1;height:5px;background:var(--border);border-radius:3px;overflow:hidden">'
+      +'<div style="height:100%;width:'+sellW+'%;background:'+sellColor+';border-radius:3px"></div></div>'
       +'<div style="font-size:10px;font-weight:900;color:'+sellColor+';width:28px;text-align:right">'+ps.sellScore+'/8</div>'
-      +(ps.sellScore >= ps.buyScore && ps.sellScore >= 3 ? '<div style="font-size:8px;font-weight:800;color:'+sellColor+';background:var(--s2);border-radius:4px;padding:1px 5px;flex-shrink:0">▲ BEST</div>' : '')
       +'</div>'
       // Buy bar
       +'<div style="display:flex;align-items:center;gap:8px">'
       +'<div style="font-size:9px;font-weight:800;color:var(--dim);width:72px;flex-shrink:0">Buy Premium</div>'
-      +'<div style="flex:1;height:6px;background:var(--border);border-radius:3px;overflow:hidden">'
-      +'<div style="height:100%;width:'+buyW+'%;background:'+buyColor+';border-radius:3px;transition:width .4s"></div></div>'
+      +'<div style="flex:1;height:5px;background:var(--border);border-radius:3px;overflow:hidden">'
+      +'<div style="height:100%;width:'+buyW+'%;background:'+buyColor+';border-radius:3px"></div></div>'
       +'<div style="font-size:10px;font-weight:900;color:'+buyColor+';width:28px;text-align:right">'+ps.buyScore+'/8</div>'
-      +(ps.buyScore > ps.sellScore && ps.buyScore >= 3 ? '<div style="font-size:8px;font-weight:800;color:'+buyColor+';background:var(--s2);border-radius:4px;padding:1px 5px;flex-shrink:0">▲ BEST</div>' : '')
       +'</div>'
       +'</div>'
-      // Top signals
+      // Signals
       +(ps.sellScore >= ps.buyScore && ps.sellSignals.length
-        ? '<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px">'
-          + ps.sellSignals.map(function(s){ return '<span style="font-size:9px;color:var(--green);background:var(--gbg);border-radius:4px;padding:2px 6px">'+s+'</span>'; }).join('')
-          +'</div>' : '')
+        ? '<div style="margin-top:5px;display:flex;flex-wrap:wrap;gap:3px">'+ps.sellSignals.map(function(s){return '<span style="font-size:9px;color:var(--green);background:var(--gbg);border-radius:4px;padding:1px 5px">'+s+'</span>';}).join('')+'</div>':''  )
       +(ps.buyScore > ps.sellScore && ps.buySignals.length
-        ? '<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px">'
-          + ps.buySignals.map(function(s){ return '<span style="font-size:9px;color:var(--accent);background:var(--s2);border-radius:4px;padding:2px 6px">'+s+'</span>'; }).join('')
-          +'</div>' : '')
+        ? '<div style="margin-top:5px;display:flex;flex-wrap:wrap;gap:3px">'+ps.buySignals.map(function(s){return '<span style="font-size:9px;color:var(--accent);background:var(--s2);border-radius:4px;padding:1px 5px">'+s+'</span>';}).join('')+'</div>':'')
+      +'</div>'
       +'</div>';
   }
 
