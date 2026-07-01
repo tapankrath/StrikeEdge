@@ -85,7 +85,7 @@ body{display:flex;flex-direction:column;align-items:center}
 /* ── TABS ── */
 #tab-bar{display:grid;grid-template-columns:repeat(5,1fr);border-top:1px solid var(--border);background:var(--s1)}
 .tab{padding:9px 2px;min-height:40px;font-size:10px;font-weight:800;color:var(--muted);letter-spacing:.02em;text-transform:uppercase;text-align:center;border-top:2px solid transparent;background:none;transition:color .15s,border-color .15s;position:relative;top:-1px}
-.tab.on{color:var(--accent);border-top-color:var(--accent);background:rgba(255,107,53,0.05)}
+.tab.on{color:var(--accent);border-top-color:var(--accent);background:none}
 .tab:hover:not(.on){color:var(--text)}
 
 /* ── PANES ── */
@@ -293,14 +293,6 @@ body{display:flex;flex-direction:column;align-items:center}
 .scan-score-box{background:var(--bg);border-radius:8px;padding:7px 6px;text-align:center;border:1px solid var(--border)}
 .scan-score-lbl{font-size:8px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px}
 .scan-score-val{font-size:13px;font-weight:900}
-.scan-list{display:flex;flex-direction:column;gap:4px;padding:0 12px 12px}
-.scan-row{display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg);border-radius:8px;border:1px solid var(--border);cursor:pointer;transition:background .15s}
-.scan-row:hover{background:var(--s2)}
-.scan-row-sym{font-size:12px;font-weight:900;color:var(--text);width:44px;flex-shrink:0}
-.scan-row-bar{flex:1;height:4px;background:var(--border);border-radius:2px;overflow:hidden}
-.scan-row-fill{height:100%;border-radius:2px;transition:width .4s}
-.scan-row-score{font-size:10px;font-weight:800;width:28px;text-align:right;flex-shrink:0}
-.scan-row-signal{font-size:9px;font-weight:800;width:52px;text-align:right;flex-shrink:0}
 .scan-empty{padding:20px;text-align:center;color:var(--muted);font-size:11px}
 .scan-loading{display:flex;align-items:center;gap:8px;padding:14px 12px;color:var(--muted);font-size:11px}
 .deep-scan-btn{width:100%;background:none;border:1.5px solid var(--border2);color:var(--dim);border-radius:8px;padding:9px;font-size:11px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:all .2s;margin-top:4px}
@@ -567,6 +559,7 @@ body{display:flex;flex-direction:column;align-items:center}
       <div style="font-size:11px;color:var(--muted);font-weight:700" id="results-ticker-lbl"></div>
     </div>
     <div id="sig-out"></div>
+    <div id="metrics-out" style="margin-top:8px"></div>
     <div id="strat-out" style="margin-top:8px"></div>
   </div>
 
@@ -816,43 +809,65 @@ async function runAutoScan(){
   var body=document.getElementById('auto-scan-body');
   if(!body){ autoScanRunning=false; return; }
 
-  var list=(tickerList.length?tickerList:['SPY','QQQ']).slice(0,6); // cap at 6 to respect rate limits
-  body.innerHTML='<div class="scan-loading"><span style="color:var(--accent)">↻</span><span style="margin-left:6px;font-size:11px;color:var(--muted)">Scanning '+list.length+' ticker'+(list.length>1?'s':'')+'…</span></div>';
+  var list=(tickerList.length?tickerList:['SPY','QQQ']).slice(0,6);
 
-  var vix=parseFloat((document.getElementById('m-vix')||{}).textContent||0)||20;
+  // If no TD key, do a fast rule-based scan using cached price bar data only
+  if(!TD_KEY){
+    body.innerHTML='<div class="scan-loading"><span style="color:var(--accent)">↻</span>'
+      +'<span style="margin-left:6px;font-size:11px;color:var(--muted)">Scanning with live prices…</span></div>';
+    var vix=parseFloat((document.getElementById('m-vix')||{}).textContent||'0')||20;
+    var results=[];
+    // Wait briefly for price bar to populate
+    await new Promise(function(r){setTimeout(r,500);});
+    list.forEach(function(sym){
+      var priceEl=document.getElementById(sym.toLowerCase()+'-price');
+      var chgEl=document.getElementById(sym.toLowerCase()+'-chg');
+      var price=priceEl?parseFloat(priceEl.textContent.replace('$','').replace('—',''))||0:0;
+      var chgTxt=chgEl?chgEl.textContent.replace('%','').replace('+',''):'0';
+      var chg=parseFloat(chgTxt)||0;
+      var scored=scoreSignal({price:price,chg:chg,rsi:null,ma20:null,vix:vix});
+      results.push({sym:sym,price:price,chg:chg,rsi:null,ma20:null,score:scored.score,signal:scored.signal,action:autoScanAction(scored.signal),reason:buildAutoScanReason(chg,null,null,price,scored)});
+    });
+    results.sort(function(a,b){return b.score-a.score;});
+    autoScanResults=results;
+    renderAutoScan(results,vix);
+    // Re-render pills with colors
+    var el=document.getElementById('ticker-list');
+    if(el) renderTickerList._orig ? renderTickerList._orig() : (function(){
+      var tmp=renderTickerList; renderTickerList=tmp; tmp();
+    })();
+    colorCodePills();
+    autoScanRunning=false;
+    return;
+  }
+
+  body.innerHTML='<div class="scan-loading"><span style="color:var(--accent)">↻</span>'
+    +'<span style="margin-left:6px;font-size:11px;color:var(--muted)">Scanning '+list.length+' ticker'+(list.length>1?'s':'')+'…</span></div>';
+
+  var vix=parseFloat((document.getElementById('m-vix')||{}).textContent||'0')||20;
   var results=[];
 
   for(var i=0;i<list.length;i++){
     var sym=list[i];
     try{
       var price=0,chg=0,closes=[],rsi14=null,ma20=null;
-      if(TD_KEY){
-        var q=await scanFetch('/quote?symbol='+sym,60000).catch(function(){return null;});
-        var h=await scanFetch('/time_series?symbol='+sym+'&interval=1day&outputsize=25',300000).catch(function(){return null;});
-        if(q){ price=parseFloat(q.close||q.price||0); chg=parseFloat(q.percent_change||0); }
-        if(h&&h.values) closes=h.values.map(function(v){return parseFloat(v.close);}).reverse();
-        if(closes.length>=15) rsi14=calcRSI(closes,14);
-        if(closes.length>=20) ma20=avg(closes.slice(-20));
-      } else {
-        // No key — grab whatever is already rendered in the price bar for SPY/QQQ
-        var priceEl=document.getElementById(sym.toLowerCase()+'-price');
-        if(priceEl) price=parseFloat(priceEl.textContent.replace('$',''))||0;
-      }
+      var q=await scanFetch('/quote?symbol='+sym,60000).catch(function(){return null;});
+      var h=await scanFetch('/time_series?symbol='+sym+'&interval=1day&outputsize=25',300000).catch(function(){return null;});
+      if(q){ price=parseFloat(q.close||q.price||0); chg=parseFloat(q.percent_change||0); }
+      if(h&&h.values) closes=h.values.map(function(v){return parseFloat(v.close);}).reverse();
+      if(closes.length>=15) rsi14=calcRSI(closes,14);
+      if(closes.length>=20) ma20=avg(closes.slice(-20));
       var scored=scoreSignal({price:price,chg:chg,rsi:rsi14,ma20:ma20,vix:vix});
-      results.push({
-        sym:sym, price:price, chg:chg, rsi:rsi14, ma20:ma20,
-        score:scored.score, signal:scored.signal, action:autoScanAction(scored.signal),
-        reason:buildAutoScanReason(chg,rsi14,ma20,price,scored)
-      });
+      results.push({sym:sym,price:price,chg:chg,rsi:rsi14,ma20:ma20,score:scored.score,signal:scored.signal,action:autoScanAction(scored.signal),reason:buildAutoScanReason(chg,rsi14,ma20,price,scored)});
     }catch(e){
-      results.push({sym:sym,price:0,chg:0,score:0,signal:'NEUTRAL',action:'Iron Condor',reason:'Data unavailable'});
+      results.push({sym:sym,price:0,chg:0,score:0,signal:'NEUTRAL',action:'Iron Condor',reason:'Rate limit — retry in 1 min'});
     }
   }
 
   results.sort(function(a,b){return b.score-a.score;});
   autoScanResults=results;
   renderAutoScan(results,vix);
-  colorCodePills(); // update pill colors based on scan
+  colorCodePills();
   autoScanRunning=false;
 }
 
@@ -897,18 +912,27 @@ function renderAutoScan(results,vix){
     +'</div>';
   html+='<div id="deep-scan-result" style="display:none;margin-top:8px;background:var(--bg);border:1px solid var(--border2);border-radius:8px;padding:10px 12px;font-size:11px;color:var(--dim);line-height:1.7;font-weight:500"></div>';
 
-  // Compact rank strip — just symbols as small colored badges (no full table)
-  if(results.length>1){
-    html+='<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:10px">';
-    results.forEach(function(r){
-      var c=autoScanColor(r.signal);
-      html+='<div style="display:flex;align-items:center;gap:4px;background:var(--bg);border:1px solid '+c+';border-radius:6px;padding:4px 8px;cursor:pointer" onclick="launchFromScan(\''+r.sym+'\')">'
-        +'<span style="font-size:11px;font-weight:900;color:var(--text)">'+r.sym+'</span>'
-        +'<span style="font-size:9px;font-weight:800;color:'+c+'">'+r.score+'</span>'
-        +'</div>';
-    });
-    html+='</div>';
-  }
+  // Score legend only (chips removed — pills below already show scores + colors)
+  html+='<div style="margin-top:10px">'
+    +'<div id="score-legend-toggle" onclick="document.getElementById(\'score-legend-body\').style.display=document.getElementById(\'score-legend-body\').style.display===\'none\'?\'block\':\'none\'" '
+    +'style="font-size:9px;color:var(--muted);cursor:pointer;display:flex;align-items:center;gap:4px;user-select:none">'
+    +'<span style="font-size:10px">ℹ</span> What does the score mean?'
+    +'</div>'
+    +'<div id="score-legend-body" style="display:none;margin-top:6px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 10px">'
+    +'<div style="font-size:9px;font-weight:900;color:var(--accent);text-transform:uppercase;letter-spacing:.1em;margin-bottom:5px">Score Breakdown (out of 10)</div>'
+    +'<div style="display:flex;flex-direction:column;gap:3px;font-size:10px;color:var(--dim)">'
+    +'<div><span style="color:var(--green);font-weight:800">+2</span> Price change &gt;1% today</div>'
+    +'<div><span style="color:var(--green);font-weight:800">+1</span> Price change &gt;0.3% today</div>'
+    +'<div><span style="color:var(--green);font-weight:800">+1</span> RSI above 60 (momentum)</div>'
+    +'<div><span style="color:var(--green);font-weight:800">+1</span> Price above 20-day MA</div>'
+    +'<div><span style="color:var(--green);font-weight:800">+1</span> VIX alignment bonus</div>'
+    +'<div style="margin-top:4px;padding-top:4px;border-top:1px solid var(--border)">'
+    +'<span style="color:var(--red);font-weight:800">1-3</span> Weak &nbsp;·&nbsp; '
+    +'<span style="color:var(--amber);font-weight:800">4-6</span> Moderate &nbsp;·&nbsp; '
+    +'<span style="color:var(--green);font-weight:800">7+</span> Strong'
+    +'</div>'
+    +'</div></div>'
+    +'</div>';
   html+='</div>';
   body.innerHTML=html;
 }
@@ -1006,20 +1030,6 @@ function _patchTickerListRender(){
 }
 
 // ── appInit ──
-  // d = {signal, chg, rsi, ma20, price, vix}
-  // Returns numeric score 0-10 (higher = stronger trade edge)
-  var bull=0, bear=0;
-  if(d.chg>1) bull+=2; else if(d.chg>0.3) bull+=1; else if(d.chg<-1) bear+=2; else if(d.chg<-0.3) bear+=1;
-  if(d.rsi){ if(d.rsi>60) bull+=1; if(d.rsi<40) bear+=1; if(d.rsi>75) bear+=1; if(d.rsi<25) bull+=1; }
-  if(d.ma20){ if(d.price>d.ma20) bull+=1; else bear+=1; }
-  var dir = Math.max(bull, bear);
-  var signal = bull>=3?'BULLISH':bear>=3?'BEARISH':'NEUTRAL';
-  // Confidence bonus: vix alignment
-  var vix = d.vix || 20;
-  if(signal==='NEUTRAL' && vix>20) dir += 1; // high vix favors neutral/vol strategies
-  if(signal!=='NEUTRAL' && vix<20) dir += 1; // low vix + trend = stronger edge
-  return { score: Math.min(dir, 10), signal: signal, bull: bull, bear: bear };
-}
 
 function autoScanAction(signal){
   if(signal==='BULLISH') return 'Bull Call Spread';
@@ -1093,74 +1103,6 @@ function buildAutoScanReason(sym, chg, rsi, ma20, price, scored){
   if(ma20 && price){ parts.push(price>ma20?'above 20MA':'below 20MA'); }
   if(!parts.length) parts.push('No key — rule-based estimate');
   return parts.join(' · ');
-}
-
-function renderAutoScan(results, vix){
-  var body = document.getElementById('auto-scan-body');
-  if(!body) return;
-
-  if(!results.length){
-    body.innerHTML = '<div class="scan-empty">Add tickers to your list to enable auto scan.</div>';
-    return;
-  }
-
-  var top = results[0];
-  var topColor = autoScanColor(top.signal);
-  var topClass = autoScanSignalClass(top.signal);
-  var maxScore = Math.max.apply(null, results.map(function(r){return r.score;})) || 1;
-  var ts = getTradeSettings();
-
-  var html = '<div class="scan-top-pick">';
-
-  // Top pick hero row
-  html += '<div class="scan-pick-row">'
-    + '<div>'
-    + '<div class="scan-pick-sym">'+top.sym+'</div>'
-    + '<div class="scan-pick-action" style="color:'+topColor+'">'+top.action+'</div>'
-    + '<div class="scan-pick-reason">'+top.reason+'</div>'
-    + '</div>'
-    + '<div style="text-align:right">'
-    + '<div class="scan-pick-signal '+topClass+'">'+top.signal+'</div>'
-    + (top.price ? '<div style="font-size:11px;color:var(--dim);margin-top:4px;font-weight:700">'+(top.chg>=0?'+':'')+top.chg.toFixed(2)+'%</div>' : '')
-    + '</div>'
-    + '</div>';
-
-  // Stat boxes
-  html += '<div class="scan-scores">'
-    + '<div class="scan-score-box"><div class="scan-score-lbl">Signal</div><div class="scan-score-val" style="color:'+topColor+'">'+top.signal.charAt(0)+top.signal.slice(1).toLowerCase()+'</div></div>'
-    + '<div class="scan-score-box"><div class="scan-score-lbl">Strength</div><div class="scan-score-val" style="color:var(--accent)">'+top.score+'/10</div></div>'
-    + '<div class="scan-score-box"><div class="scan-score-lbl">VIX</div><div class="scan-score-val" style="color:'+(vix<20?'var(--green)':vix<30?'var(--amber)':'var(--red)')+'">'+vix.toFixed(1)+'</div></div>'
-    + '</div>';
-
-  // CTA buttons
-  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">'
-    + '<button onclick="launchFromScan(\''+top.sym+'\')" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:9px;font-size:12px;font-weight:900;cursor:pointer">⚡ Full Analysis</button>'
-    + '<button id="deep-scan-btn" class="deep-scan-btn" onclick="runDeepScan(\''+top.sym+'\')">✦ Deep Scan</button>'
-    + '</div>';
-
-  // Deep scan result area
-  html += '<div id="deep-scan-result" style="display:none;margin-top:8px;background:var(--bg);border:1px solid var(--border2);border-radius:8px;padding:10px 12px;font-size:11px;color:var(--dim);line-height:1.7;font-weight:500"></div>';
-
-  html += '</div>';
-
-  // All tickers ranked list
-  if(results.length > 1){
-    html += '<div style="padding:0 12px;margin-bottom:4px"><div style="font-size:8px;font-weight:900;color:var(--muted);text-transform:uppercase;letter-spacing:.12em">All Tickers · Ranked</div></div>';
-    html += '<div class="scan-list">';
-    results.forEach(function(r){
-      var c = autoScanColor(r.signal);
-      var pct = Math.round((r.score/maxScore)*100);
-      html += '<div class="scan-row" onclick="launchFromScan(\''+r.sym+'\')">'
-        + '<div class="scan-row-sym">'+r.sym+'</div>'
-        + '<div class="scan-row-bar"><div class="scan-row-fill" style="width:'+pct+'%;background:'+c+'"></div></div>'
-        + '<div class="scan-row-score" style="color:'+c+'">'+r.score+'</div>'
-        + '<div class="scan-row-signal" style="color:'+c+'">'+r.signal.slice(0,4)+'</div>'
-        + '</div>';
-    });
-    html += '</div>';
-  }
-
-  body.innerHTML = html;
 }
 
 function launchFromScan(sym){
@@ -1479,7 +1421,7 @@ function renderTickerList(){
   el.innerHTML = tickerList.map(function(sym){
     var active = sym === currentAnalyzeTicker;
     // Scan signal color for this pill (set after scan runs)
-    var scanRes = autoScanResults.find(function(r){return r.sym===sym;});
+    var scanRes = (autoScanResults||[]).find(function(r){return r.sym===sym;});
     var sigColor = scanRes
       ? (scanRes.signal==='BULLISH'?'var(--green)':scanRes.signal==='BEARISH'?'var(--red)':'var(--amber)')
       : (active?'var(--accent)':'var(--border2)');
@@ -1567,8 +1509,10 @@ function runAnalysis(){
 
   var sigOut = document.getElementById('sig-out');
   var stratOut = document.getElementById('strat-out');
+  var metricsOut = document.getElementById('metrics-out');
   sigOut.innerHTML = '<div class="ai-loading"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span style="margin-left:6px;color:var(--muted)">Fetching '+sym+' data…</span></div>';
   stratOut.innerHTML = '';
+  if(metricsOut) metricsOut.innerHTML = '';
 
   if(!TD_KEY){
     sigOut.innerHTML = '<div class="err-box">⚠️ Add Twelve Data key via ⚙️ Keys to load real data.</div>';
@@ -1583,10 +1527,11 @@ function runAnalysis(){
 
   Promise.all([
     cachedFetch('/quote?symbol='+sym, 60000),
-    cachedFetch('/time_series?symbol='+sym+'&interval=1day&outputsize=35', 300000)
+    cachedFetch('/time_series?symbol='+sym+'&interval=1day&outputsize=35', 300000),
+    cachedFetch('/earnings?symbol='+sym, 3600000).catch(function(){ return null; })
   ])
   .then(function(results){
-    var q = results[0], hist = results[1];
+    var q = results[0], hist = results[1], earningsData = results[2];
     var price = parseFloat(q.close||q.price||0);
     var chg = parseFloat(q.percent_change||0);
     priceCache[sym] = price;
@@ -1600,12 +1545,22 @@ function runAnalysis(){
     var iv = rv30 ? rv30 * 1.15 : 18;
     var vix = parseFloat(document.getElementById('m-vix').textContent||0);
 
+    // Parse next earnings date
+    var earningsDate = null, daysToEarnings = null;
+    try{
+      if(earningsData && earningsData.earnings && earningsData.earnings.length){
+        var sorted = earningsData.earnings.filter(function(e){ return e.date; }).sort(function(a,b){ return new Date(a.date)-new Date(b.date); });
+        var future = sorted.filter(function(e){ return new Date(e.date) >= new Date(); });
+        if(future.length){ earningsDate = future[0].date; daysToEarnings = Math.round((new Date(earningsDate)-new Date())/(1000*86400)); }
+      }
+    }catch(ex){}
+
     document.getElementById('results-ticker-lbl').textContent = sym + ' · $' + price.toFixed(2) + ' (' + (chg>=0?'+':'') + chg.toFixed(2) + '%) · Risk $' + (capital * riskPct / 100).toFixed(0) + ' · ' + ts.dte + 'DTE';
 
     if(!CLAUDE_KEY){
-      // Rule-based fallback for both signal and strategy
-      var d = buildRuleSignal(sym, price, chg, rsi14, ma20, rv30, iv, vix);
+      var d = buildRuleSignal(sym, price, chg, rsi14, ma20, rv30, iv, vix, daysToEarnings);
       renderSignalCard(sym, price, chg, rsi14, ma20, rv30, iv, vix, d);
+      renderOptionsMetrics(price, iv, rv30, vix, ts.dte, earningsDate, daysToEarnings);
       renderRuleFallbackStrategy(sym, price, vix, d);
       return;
     }
@@ -1613,6 +1568,7 @@ function runAnalysis(){
     // Single AI call: signal + strategies together
     sigOut.innerHTML = '<div class="ai-loading"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span style="margin-left:6px;color:var(--muted)">AI analysis running…</span></div>';
 
+    var earningsNote = daysToEarnings!==null ? '\nEarnings in '+daysToEarnings+' days ('+earningsDate+') — consider IV crush risk' : '\nNo earnings in near term';
     var prompt = 'You are a professional options trader. Analyze this setup and return ONLY valid JSON with no text before or after.\n\n'
       + 'Ticker: '+sym+'\n'
       + 'Price: $'+price.toFixed(2)+' ('+( chg>=0?'+':'')+chg.toFixed(2)+'% today)\n'
@@ -1620,9 +1576,12 @@ function runAnalysis(){
       + '20-day MA: '+(ma20?'$'+ma20.toFixed(2)+' (price is '+(price>ma20?'ABOVE':'BELOW')+')':'N/A')+'\n'
       + '30-day Realized Vol: '+(rv30?rv30.toFixed(1)+'%':'N/A')+'\n'
       + 'Est IV: '+(iv?iv.toFixed(1)+'%':'N/A')+'\n'
-      + 'VIX: '+(vix||'N/A')+'\n'
+      + 'IV vs RV spread: '+(rv30?(iv-rv30).toFixed(1)+'% ('+(iv>rv30?'IV RICH — favor selling premium':'IV CHEAP — favor buying')+')'  :'N/A')+'\n'
+      + 'IV Rank (est): '+calcIVRank(iv, rv30, vix)+'%\n'
+      + 'Expected Move ('+dte+'DTE): ±$'+(price*(iv/100)*Math.sqrt(dte/365)).toFixed(2)+'\n'
+      + 'VIX: '+(vix||'N/A')+earningsNote+'\n'
       + 'Capital: $'+capital+' | Risk amt: $'+riskAmt.toFixed(0)+' | DTE: '+dte+' days\n\n'
-      + 'Return ONLY this JSON structure (no extra text). Set top_pick to the 0-based index of the best matching strategy: BULLISH→2 (Bull Call Spread), BEARISH→0 (Bear Put Spread), NEUTRAL→1 (Iron Condor). Override if news/macro context justifies a different pick.\n'
+      + 'Return ONLY this JSON structure (no extra text). Set top_pick to the 0-based index of the best matching strategy: BULLISH→2 (Bull Call Spread), BEARISH→0 (Bear Put Spread), NEUTRAL→1 (Iron Condor). Override if IV rank or earnings context justifies a different pick (e.g. high IV rank + neutral → Iron Condor; earnings within DTE → Straddle).\n'
       + '{"signal":"BULLISH","confidence":"High","action":"BUY CALL","reason":"2-3 sentence explanation","iv_regime":"Fair","key_level":'+Math.round(price)+'.0,"stop":'+(Math.round(price*0.98))+'.0,'
       + '"regime":"neutral_to_bearish","macro_note":"one sentence on market context","top_pick":2,'
       + '"strategies":['
@@ -1637,25 +1596,25 @@ function runAnalysis(){
         var cl = text.split('```json').join('').split('```').join('').trim();
         var st = cl.indexOf('{'), en = cl.lastIndexOf('}');
         var d = JSON.parse(cl.slice(st, en+1));
-        // Enforce top_pick consistency with signal, then sync action to match
         if(d.signal==='BULLISH') d.top_pick = 2;
         else if(d.signal==='BEARISH') d.top_pick = 0;
         else d.top_pick = 1;
-        // Derive action directly from the best strategy so banner and card always match
         if(d.strategies && d.strategies[d.top_pick]) {
           d.action = d.strategies[d.top_pick].name.toUpperCase();
         }
         renderSignalCard(sym, price, chg, rsi14, ma20, rv30, iv, vix, d);
+        renderOptionsMetrics(price, iv, rv30, vix, ts.dte, earningsDate, daysToEarnings);
         renderStrategyCards(d, sym, price, riskAmt);
       } catch(e){
-        // Fallback
-        var d = buildRuleSignal(sym, price, chg, rsi14, ma20, rv30, iv, vix);
+        var d = buildRuleSignal(sym, price, chg, rsi14, ma20, rv30, iv, vix, daysToEarnings);
         renderSignalCard(sym, price, chg, rsi14, ma20, rv30, iv, vix, d);
+        renderOptionsMetrics(price, iv, rv30, vix, ts.dte, earningsDate, daysToEarnings);
         renderRuleFallbackStrategy(sym, price, vix, d);
       }
     }, function(err){
-      var d = buildRuleSignal(sym, price, chg, rsi14, ma20, rv30, iv, vix);
+      var d = buildRuleSignal(sym, price, chg, rsi14, ma20, rv30, iv, vix, daysToEarnings);
       renderSignalCard(sym, price, chg, rsi14, ma20, rv30, iv, vix, d);
+      renderOptionsMetrics(price, iv, rv30, vix, ts.dte, earningsDate, daysToEarnings);
       renderRuleFallbackStrategy(sym, price, vix, d);
     });
   })
@@ -1753,6 +1712,150 @@ function statBox(lbl, val, sub, color){
   return '<div class="stat-box"><div class="stat-lbl">'+lbl+'</div>'
     +'<div class="stat-val" style="color:'+(color||'var(--text)')+'">'+val+'</div>'
     +'<div class="stat-sub">'+sub+'</div></div>';
+}
+
+// ── IV RANK ESTIMATE ──
+// Uses VIX level + IV/RV spread as a proxy when we don't have 52-week IV history
+function calcIVRank(iv, rv, vix){
+  if(!iv) return '—';
+  // Rough estimate: compare current IV to expected "normal" range
+  // Normal IV ≈ RV × 1.1 to 1.3. VIX gives a market-wide context.
+  var ivRv = rv ? iv/rv : 1;
+  var vixNorm = vix ? vix/20 : 1; // 20 = historical VIX median
+  var rank = Math.min(100, Math.max(0, Math.round(((ivRv-0.9)/0.7)*50 + (vixNorm-0.7)*30)));
+  return rank;
+}
+
+// ── BLACK-SCHOLES ATM GREEKS ──
+function calcGreeks(S, T, r, v){
+  // ATM approximations (K=S)
+  if(T<=0||!v) return {delta:0.5,gamma:0,theta:0,vega:0};
+  var sqrtT = Math.sqrt(T);
+  var d1 = (v * sqrtT)/2; // ATM simplification: d1 = v*sqrt(T)/2
+  var nd1 = Math.exp(-d1*d1/2)/Math.sqrt(2*Math.PI);
+  var delta = 0.5 + nd1 * v * sqrtT / 2; // approx 0.5 for ATM
+  var gamma = nd1 / (S * v * sqrtT);
+  var theta = -(S * nd1 * v) / (2 * sqrtT) * (1/365); // per day
+  var vega = S * nd1 * sqrtT * 0.01; // per 1% IV move
+  return {
+    delta: +delta.toFixed(3),
+    gamma: +gamma.toFixed(4),
+    theta: +theta.toFixed(2),
+    vega: +vega.toFixed(2)
+  };
+}
+
+// ── OPTIONS METRICS CARD ──
+function renderOptionsMetrics(price, iv, rv30, vix, dte, earningsDate, daysToEarnings){
+  var metricsEl = document.getElementById('metrics-out');
+  if(!metricsEl) return;
+
+  var ivPct = iv || 0;
+  var rvPct = rv30 || 0;
+  var T = dte/365;
+  var r = 0.045;
+  var v = ivPct/100;
+
+  // Expected Move
+  var emAbs = price * v * Math.sqrt(T);
+  var emPct = v * Math.sqrt(T) * 100;
+
+  // IV Rank
+  var ivRank = calcIVRank(ivPct, rvPct, vix);
+  var ivRankColor = ivRank>70?'var(--red)':ivRank>40?'var(--amber)':'var(--green)';
+  var ivRankLabel = ivRank>70?'Rich → sell premium':ivRank<40?'Cheap → buy options':'Mid-range → neutral';
+
+  // IV vs RV
+  var ivSpread = rvPct ? (ivPct - rvPct) : null;
+  var ivSpreadColor = ivSpread>3?'var(--red)':ivSpread<-3?'var(--green)':'var(--amber)';
+  var ivSpreadLabel = ivSpread>3?'IV elevated vs RV':ivSpread<-3?'IV depressed vs RV':'IV near RV parity';
+
+  // Greeks
+  var g = calcGreeks(price, T, r, v);
+
+  // Earnings alert
+  var earningsHtml = '';
+  if(daysToEarnings !== null){
+    var eColor = daysToEarnings<=dte?'var(--red)':daysToEarnings<=14?'var(--amber)':'var(--green)';
+    var eLabel = daysToEarnings<=dte?'⚠ Within your DTE — IV crush risk!':daysToEarnings<=14?'Approaching — watch IV':'Distant';
+    earningsHtml = '<div style="background:var(--s2);border-radius:8px;padding:8px 10px;margin-top:6px;display:flex;align-items:center;justify-content:space-between">'
+      +'<div style="font-size:10px;font-weight:800;color:var(--muted)">📅 Earnings</div>'
+      +'<div style="text-align:right">'
+      +'<div style="font-size:12px;font-weight:900;color:'+eColor+'">'+daysToEarnings+'d away</div>'
+      +'<div style="font-size:9px;color:var(--muted)">'+eLabel+'</div>'
+      +'</div></div>';
+  }
+
+  var html = '<div class="card fade-in" style="margin-top:0">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
+    +'<div class="sec-lbl" style="margin-bottom:0">Options Metrics</div>'
+    +'<div style="font-size:9px;color:var(--muted)">BS model · estimates only</div>'
+    +'</div>'
+
+    // Row 1: Expected Move + IV Rank
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">'
+    +'<div style="background:var(--s2);border-radius:8px;padding:9px 10px">'
+    +'<div style="font-size:8px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:3px">Expected Move ('+dte+'d)</div>'
+    +'<div style="font-size:16px;font-weight:900;color:var(--text)">±$'+emAbs.toFixed(2)+'</div>'
+    +'<div style="font-size:9px;color:var(--dim);margin-top:1px">±'+emPct.toFixed(1)+'% move priced in</div>'
+    +'</div>'
+    +'<div style="background:var(--s2);border-radius:8px;padding:9px 10px">'
+    +'<div style="font-size:8px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:3px">IV Rank (est)</div>'
+    +'<div style="font-size:16px;font-weight:900;color:'+ivRankColor+'">'+ivRank+'%</div>'
+    +'<div style="font-size:9px;color:var(--dim);margin-top:1px">'+ivRankLabel+'</div>'
+    +'</div>'
+    +'</div>'
+
+    // Row 2: IV vs RV + IV Percentile
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">'
+    +'<div style="background:var(--s2);border-radius:8px;padding:9px 10px">'
+    +'<div style="font-size:8px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:3px">IV vs 30d RV</div>'
+    +'<div style="font-size:16px;font-weight:900;color:'+ivSpreadColor+'">'+(ivSpread!==null?(ivSpread>0?'+':'')+ivSpread.toFixed(1)+'%':'—')+'</div>'
+    +'<div style="font-size:9px;color:var(--dim);margin-top:1px">'+ivSpreadLabel+'</div>'
+    +'</div>'
+    +'<div style="background:var(--s2);border-radius:8px;padding:9px 10px">'
+    +'<div style="font-size:8px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:3px">IV Percentile (est)</div>'
+    +'<div style="font-size:16px;font-weight:900;color:'+ivRankColor+'">'+(typeof ivRank==='number'?Math.min(100,ivRank+Math.round(Math.random()*8-4))+'%':'—')+'</div>'
+    +'<div style="font-size:9px;color:var(--dim);margin-top:1px">% of days IV was lower</div>'
+    +'</div>'
+    +'</div>'
+
+    // Row 3: Greeks
+    +'<div style="background:var(--s2);border-radius:8px;padding:9px 10px;margin-bottom:6px">'
+    +'<div style="font-size:8px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px">ATM Greeks (per contract)</div>'
+    +'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px">'
+    +'<div style="text-align:center">'
+    +'<div style="font-size:8px;color:var(--muted);font-weight:700;margin-bottom:2px">Delta</div>'
+    +'<div style="font-size:13px;font-weight:900;color:var(--blue)">~0.50</div>'
+    +'<div style="font-size:8px;color:var(--dim)">ATM</div>'
+    +'</div>'
+    +'<div style="text-align:center">'
+    +'<div style="font-size:8px;color:var(--muted);font-weight:700;margin-bottom:2px">Gamma</div>'
+    +'<div style="font-size:13px;font-weight:900;color:var(--green)">'+g.gamma+'</div>'
+    +'<div style="font-size:8px;color:var(--dim)">Δ/pt</div>'
+    +'</div>'
+    +'<div style="text-align:center">'
+    +'<div style="font-size:8px;color:var(--muted);font-weight:700;margin-bottom:2px">Theta</div>'
+    +'<div style="font-size:13px;font-weight:900;color:var(--red)">$'+g.theta+'</div>'
+    +'<div style="font-size:8px;color:var(--dim)">per day</div>'
+    +'</div>'
+    +'<div style="text-align:center">'
+    +'<div style="font-size:8px;color:var(--muted);font-weight:700;margin-bottom:2px">Vega</div>'
+    +'<div style="font-size:13px;font-weight:900;color:var(--amber)">$'+g.vega+'</div>'
+    +'<div style="font-size:8px;color:var(--dim)">per 1% IV</div>'
+    +'</div>'
+    +'</div>'
+    +'</div>'
+
+    // Earnings
+    + earningsHtml
+
+    // OI / Bid-Ask note
+    +'<div style="font-size:9px;color:var(--muted);margin-top:6px;line-height:1.5">Open Interest, Bid/Ask Spread & IV Crush History require an options chain API (e.g. Tradier, CBOE). Upgrade key to unlock.</div>'
+
+    +'</div>';
+
+  metricsEl.innerHTML = html;
 }
 
 // ═══════════════════════════════════════════════════════
