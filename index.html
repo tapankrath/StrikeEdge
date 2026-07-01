@@ -758,12 +758,254 @@ var positions = [];
 var priceCache = {};
 
 // ═══════════════════════════════════════════════════════
-//  AUTO SCAN — rule-based, free, scans full tickerList
+//  AUTO SCAN — sequential, rate-limited, max 6 tickers
 // ═══════════════════════════════════════════════════════
 var autoScanResults = [];
 var autoScanRunning = false;
+var _scanQueue = [];
+var _scanQueueRunning = false;
+
+// Rate-limited fetch for scan — queues calls 450ms apart so we stay under 8/min
+function scanFetch(path, ttl){
+  var now = Date.now();
+  if(_cache[path] && now - _cache[path].ts < (ttl||60000)){
+    return Promise.resolve(_cache[path].data);
+  }
+  return new Promise(function(resolve, reject){
+    _scanQueue.push({path:path, ttl:ttl, resolve:resolve, reject:reject});
+    if(!_scanQueueRunning) _runScanQueue();
+  }).then(function(d){
+    _cache[path] = {data:d, ts:Date.now()};
+    return d;
+  });
+}
+function _runScanQueue(){
+  if(!_scanQueue.length){ _scanQueueRunning=false; return; }
+  _scanQueueRunning=true;
+  var item=_scanQueue.shift();
+  tdFetch(item.path).then(item.resolve).catch(item.reject);
+  setTimeout(_runScanQueue, 450); // 450ms gap = max ~7 calls/min, safe under 8 limit
+}
 
 function scoreSignal(d){
+  var bull=0, bear=0;
+  if(d.chg>1) bull+=2; else if(d.chg>0.3) bull+=1; else if(d.chg<-1) bear+=2; else if(d.chg<-0.3) bear+=1;
+  if(d.rsi){ if(d.rsi>60) bull+=1; if(d.rsi<40) bear+=1; if(d.rsi>75) bear+=1; if(d.rsi<25) bull+=1; }
+  if(d.ma20 && d.price){ if(d.price>d.ma20) bull+=1; else bear+=1; }
+  var signal = bull>=3?'BULLISH':bear>=3?'BEARISH':'NEUTRAL';
+  var vix = d.vix||20;
+  var dir = Math.max(bull,bear);
+  if(signal==='NEUTRAL'&&vix>20) dir+=1;
+  if(signal!=='NEUTRAL'&&vix<20) dir+=1;
+  return {score:Math.min(dir,10), signal:signal, bull:bull, bear:bear};
+}
+
+function autoScanAction(signal){
+  return signal==='BULLISH'?'Bull Call Spread':signal==='BEARISH'?'Bear Put Spread':'Iron Condor';
+}
+function autoScanColor(signal){
+  return signal==='BULLISH'?'var(--green)':signal==='BEARISH'?'var(--red)':'var(--amber)';
+}
+function autoScanSignalClass(signal){
+  return signal==='BULLISH'?'bull':signal==='BEARISH'?'bear':'neutral';
+}
+
+async function runAutoScan(){
+  if(autoScanRunning) return;
+  autoScanRunning=true;
+  var body=document.getElementById('auto-scan-body');
+  if(!body){ autoScanRunning=false; return; }
+
+  var list=(tickerList.length?tickerList:['SPY','QQQ']).slice(0,6); // cap at 6 to respect rate limits
+  body.innerHTML='<div class="scan-loading"><span style="color:var(--accent)">↻</span><span style="margin-left:6px;font-size:11px;color:var(--muted)">Scanning '+list.length+' ticker'+(list.length>1?'s':'')+'…</span></div>';
+
+  var vix=parseFloat((document.getElementById('m-vix')||{}).textContent||0)||20;
+  var results=[];
+
+  for(var i=0;i<list.length;i++){
+    var sym=list[i];
+    try{
+      var price=0,chg=0,closes=[],rsi14=null,ma20=null;
+      if(TD_KEY){
+        var q=await scanFetch('/quote?symbol='+sym,60000).catch(function(){return null;});
+        var h=await scanFetch('/time_series?symbol='+sym+'&interval=1day&outputsize=25',300000).catch(function(){return null;});
+        if(q){ price=parseFloat(q.close||q.price||0); chg=parseFloat(q.percent_change||0); }
+        if(h&&h.values) closes=h.values.map(function(v){return parseFloat(v.close);}).reverse();
+        if(closes.length>=15) rsi14=calcRSI(closes,14);
+        if(closes.length>=20) ma20=avg(closes.slice(-20));
+      } else {
+        // No key — grab whatever is already rendered in the price bar for SPY/QQQ
+        var priceEl=document.getElementById(sym.toLowerCase()+'-price');
+        if(priceEl) price=parseFloat(priceEl.textContent.replace('$',''))||0;
+      }
+      var scored=scoreSignal({price:price,chg:chg,rsi:rsi14,ma20:ma20,vix:vix});
+      results.push({
+        sym:sym, price:price, chg:chg, rsi:rsi14, ma20:ma20,
+        score:scored.score, signal:scored.signal, action:autoScanAction(scored.signal),
+        reason:buildAutoScanReason(chg,rsi14,ma20,price,scored)
+      });
+    }catch(e){
+      results.push({sym:sym,price:0,chg:0,score:0,signal:'NEUTRAL',action:'Iron Condor',reason:'Data unavailable'});
+    }
+  }
+
+  results.sort(function(a,b){return b.score-a.score;});
+  autoScanResults=results;
+  renderAutoScan(results,vix);
+  colorCodePills(); // update pill colors based on scan
+  autoScanRunning=false;
+}
+
+function buildAutoScanReason(chg,rsi,ma20,price,scored){
+  var parts=[];
+  if(Math.abs(chg)>0.3) parts.push((chg>0?'+':'')+chg.toFixed(1)+'% today');
+  if(rsi){ if(rsi>65) parts.push('RSI '+rsi.toFixed(0)+' high'); else if(rsi<35) parts.push('RSI '+rsi.toFixed(0)+' low'); else parts.push('RSI '+rsi.toFixed(0)); }
+  if(ma20&&price) parts.push(price>ma20?'↑ 20MA':'↓ 20MA');
+  if(!parts.length) parts.push('Rule-based estimate');
+  return parts.join(' · ');
+}
+
+function renderAutoScan(results,vix){
+  var body=document.getElementById('auto-scan-body');
+  if(!body) return;
+  if(!results.length){
+    body.innerHTML='<div class="scan-empty">Add tickers to your list to enable auto scan.</div>';
+    return;
+  }
+  var top=results[0];
+  var topColor=autoScanColor(top.signal);
+  var topClass=autoScanSignalClass(top.signal);
+
+  var html='<div class="scan-top-pick">';
+  // Top pick row
+  html+='<div class="scan-pick-row">'
+    +'<div>'
+    +'<div class="scan-pick-sym">'+top.sym+'</div>'
+    +'<div class="scan-pick-action" style="color:'+topColor+'">'+top.action+'</div>'
+    +'<div class="scan-pick-reason">'+top.reason+'</div>'
+    +'</div>'
+    +'<div style="text-align:right">'
+    +'<div class="scan-pick-signal '+topClass+'">'+top.signal+'</div>'
+    +'<div style="font-size:11px;color:var(--muted);margin-top:4px;font-weight:700">Strength '+top.score+'/10</div>'
+    +(top.price?'<div style="font-size:10px;color:var(--dim);margin-top:2px">'+(top.chg>=0?'+':'')+top.chg.toFixed(2)+'%</div>':'')
+    +'</div>'
+    +'</div>';
+  // Action buttons
+  html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">'
+    +'<button onclick="launchFromScan(\''+top.sym+'\')" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:9px;font-size:12px;font-weight:900;cursor:pointer">⚡ Full Analysis</button>'
+    +'<button id="deep-scan-btn" class="deep-scan-btn" onclick="runDeepScan(\''+top.sym+'\')">✦ Deep Scan</button>'
+    +'</div>';
+  html+='<div id="deep-scan-result" style="display:none;margin-top:8px;background:var(--bg);border:1px solid var(--border2);border-radius:8px;padding:10px 12px;font-size:11px;color:var(--dim);line-height:1.7;font-weight:500"></div>';
+
+  // Compact rank strip — just symbols as small colored badges (no full table)
+  if(results.length>1){
+    html+='<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:10px">';
+    results.forEach(function(r){
+      var c=autoScanColor(r.signal);
+      html+='<div style="display:flex;align-items:center;gap:4px;background:var(--bg);border:1px solid '+c+';border-radius:6px;padding:4px 8px;cursor:pointer" onclick="launchFromScan(\''+r.sym+'\')">'
+        +'<span style="font-size:11px;font-weight:900;color:var(--text)">'+r.sym+'</span>'
+        +'<span style="font-size:9px;font-weight:800;color:'+c+'">'+r.score+'</span>'
+        +'</div>';
+    });
+    html+='</div>';
+  }
+  html+='</div>';
+  body.innerHTML=html;
+}
+
+// Color-code the ticker pills based on scan results
+function colorCodePills(){
+  if(!autoScanResults.length) return;
+  var map={};
+  autoScanResults.forEach(function(r){ map[r.sym]=r.signal; });
+  var pills=document.querySelectorAll('#ticker-list .pill-btn');
+  pills.forEach(function(p){
+    var sym=p.getAttribute('data-sym');
+    if(!sym||!map[sym]) return;
+    p.classList.remove('pill-bull','pill-bear','pill-neutral');
+    p.classList.add('pill-'+map[sym].toLowerCase());
+  });
+}
+
+function launchFromScan(sym){
+  currentAnalyzeTicker=sym;
+  renderTickerList();
+  var panel=document.getElementById('ticker-input-panel');
+  if(panel) panel.scrollIntoView({behavior:'smooth',block:'start'});
+  setTimeout(runAnalysis,200);
+}
+
+async function runDeepScan(sym){
+  if(!CLAUDE_KEY){
+    var r=document.getElementById('deep-scan-result');
+    if(r){r.style.display='block';r.innerHTML='<span style="color:var(--amber)">⚠️ Add Claude key via ⚙ Keys for Deep Scan (AI + sector + peers).</span>';}
+    return;
+  }
+  var btn=document.getElementById('deep-scan-btn');
+  var result=document.getElementById('deep-scan-result');
+  if(!btn||!result) return;
+  btn.classList.add('running');
+  btn.textContent='⏳ Scanning…';
+  result.style.display='block';
+  result.innerHTML='<div class="ai-loading"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span style="margin-left:6px">Fetching sector + peers + macro…</span></div>';
+
+  var sectorMap={SPY:'XLK',QQQ:'XLK',AAPL:'XLK',MSFT:'XLK',NVDA:'XLK',GOOG:'XLC',META:'XLC',AMZN:'XLY',TSLA:'XLY',JPM:'XLF',BAC:'XLF',GS:'XLF',XOM:'XLE',CVX:'XLE',JNJ:'XLV',PFE:'XLV',UNH:'XLV',DEFAULT:'SPY'};
+  var peerMap={AAPL:['MSFT','GOOG'],MSFT:['AAPL','GOOG'],NVDA:['AMD','INTC'],AMD:['NVDA','INTC'],TSLA:['F','GM'],AMZN:['WMT','SHOP'],META:['SNAP','PINS'],GOOG:['META','MSFT'],JPM:['BAC','GS'],SPY:['QQQ','IWM'],QQQ:['SPY','IWM'],DEFAULT:['SPY','QQQ']};
+  var sectorETF=sectorMap[sym]||sectorMap.DEFAULT;
+  var peers=peerMap[sym]||peerMap.DEFAULT;
+  var vix=parseFloat((document.getElementById('m-vix')||{}).textContent||0)||20;
+  try{
+    var fetchedData={};
+    if(TD_KEY){
+      var syms=[sym,sectorETF].concat(peers);
+      await Promise.all(syms.map(function(s){
+        return scanFetch('/quote?symbol='+s,60000).then(function(q){fetchedData[s]={price:parseFloat(q.close||0),chg:parseFloat(q.percent_change||0)};}).catch(function(){fetchedData[s]={price:0,chg:0};});
+      }));
+      var hist=await scanFetch('/time_series?symbol='+sym+'&interval=1day&outputsize=25',300000).catch(function(){return null;});
+      var closes=hist&&hist.values?hist.values.map(function(v){return parseFloat(v.close);}).reverse():[];
+      fetchedData[sym].rsi=closes.length>=15?calcRSI(closes,14):null;
+      fetchedData[sym].ma20=closes.length>=20?avg(closes.slice(-20)):null;
+      fetchedData[sym].rv=closes.length>=22?calcRV(closes.slice(-22)):null;
+    }
+    var d=fetchedData[sym]||{};
+    var ts=getTradeSettings();
+    var prompt='You are a professional options trader doing a deep scan. Analyze this setup and give a concise 3-4 sentence trading view.\n\n'
+      +'Ticker: '+sym+'\nPrice: $'+(d.price||'N/A')+' | Change: '+(d.chg||0).toFixed(2)+'% today\n'
+      +'RSI-14: '+(d.rsi?d.rsi.toFixed(1):'N/A')+'\nvs 20MA: '+(d.ma20&&d.price?(d.price>d.ma20?'Above':'Below')+' ('+((d.price-d.ma20)/d.ma20*100).toFixed(1)+'%)':'N/A')+'\n'
+      +'30d RV: '+(d.rv?d.rv.toFixed(1)+'%':'N/A')+'\n\n'
+      +'Sector ('+sectorETF+'): '+(( fetchedData[sectorETF]||{}).chg||0).toFixed(2)+'%\n'
+      +'Peer '+peers[0]+': '+((fetchedData[peers[0]]||{}).chg||0).toFixed(2)+'% | Peer '+peers[1]+': '+((fetchedData[peers[1]]||{}).chg||0).toFixed(2)+'%\n'
+      +'VIX: '+vix.toFixed(1)+'\nCapital: $'+ts.capital+' | Risk: '+ts.risk+'% | DTE: '+ts.dte+'d\n\n'
+      +'What is the single best options trade on '+sym+' right now given sector trend and peer action? Be direct and specific.';
+    aiCall(prompt,400,function(text){
+      result.innerHTML='<div style="font-size:9px;font-weight:900;color:var(--accent);text-transform:uppercase;letter-spacing:.12em;margin-bottom:6px">✦ Deep Scan · '+sym+'</div>'
+        +text.replace(/\*\*(.*?)\*\*/g,'<strong style="color:var(--text)">$1</strong>').replace(/\n/g,'<br>');
+      btn.classList.remove('running');btn.textContent='✦ Deep Scan';
+    },function(err){
+      result.innerHTML='<span style="color:var(--red)">'+err+'</span>';
+      btn.classList.remove('running');btn.textContent='✦ Deep Scan';
+    });
+  }catch(e){
+    result.innerHTML='<span style="color:var(--red)">'+e.message+'</span>';
+    btn.classList.remove('running');btn.textContent='✦ Deep Scan';
+  }
+}
+
+// ── HOOK: patch renderTickerList to re-color pills after render ──
+var _patchDone=false;
+function _patchTickerListRender(){
+  if(_patchDone) return;
+  _patchDone=true;
+  var orig=renderTickerList;
+  renderTickerList=function(){
+    orig();
+    colorCodePills();
+    clearTimeout(window._scanDebounce);
+    window._scanDebounce=setTimeout(runAutoScan,1000);
+  };
+}
+
+// ── appInit ──
   // d = {signal, chg, rsi, ma20, price, vix}
   // Returns numeric score 0-10 (higher = stronger trade edge)
   var bull=0, bear=0;
@@ -1024,16 +1266,6 @@ async function runDeepScan(sym){
 }
 
 // ── HOOK: re-scan when ticker list changes ──
-var _origRenderTickerList = null;
-function _patchTickerListRender(){
-  _origRenderTickerList = renderTickerList;
-  renderTickerList = function(){
-    _origRenderTickerList();
-    // Debounce: re-scan 800ms after list changes
-    clearTimeout(window._scanDebounce);
-    window._scanDebounce = setTimeout(runAutoScan, 800);
-  };
-}
 
 // ── appInit ──
 function appInit(){
@@ -1246,8 +1478,17 @@ function renderTickerList(){
   }
   el.innerHTML = tickerList.map(function(sym){
     var active = sym === currentAnalyzeTicker;
-    return '<div onclick="selectListTicker(\''+sym+'\')" style="display:inline-flex;align-items:center;gap:4px;padding:6px 10px 6px 12px;border-radius:20px;border:1.5px solid '+(active?'var(--accent)':'var(--border2)')+';background:'+(active?'rgba(255,107,53,0.12)':'var(--s2)')+';cursor:pointer;transition:all .15s;white-space:nowrap">'
-      +'<span style="font-size:13px;font-weight:900;color:'+(active?'var(--accent)':'var(--text)')+'">'+sym+'</span>'
+    // Scan signal color for this pill (set after scan runs)
+    var scanRes = autoScanResults.find(function(r){return r.sym===sym;});
+    var sigColor = scanRes
+      ? (scanRes.signal==='BULLISH'?'var(--green)':scanRes.signal==='BEARISH'?'var(--red)':'var(--amber)')
+      : (active?'var(--accent)':'var(--border2)');
+    var borderColor = active ? 'var(--accent)' : sigColor;
+    var bg = active ? 'rgba(255,107,53,0.12)' : 'var(--s2)';
+    return '<div class="pill-btn" data-sym="'+sym+'" onclick="selectListTicker(\''+sym+'\')" '
+      +'style="display:inline-flex;align-items:center;gap:4px;padding:6px 10px 6px 12px;border-radius:20px;border:1.5px solid '+borderColor+';background:'+bg+';cursor:pointer;transition:all .15s;white-space:nowrap">'
+      +'<span style="font-size:13px;font-weight:900;color:'+(active?'var(--accent)':scanRes?sigColor:'var(--text)')+'">'+sym+'</span>'
+      +(scanRes?'<span style="font-size:8px;font-weight:800;color:'+sigColor+'">'+scanRes.score+'</span>':'')
       +'<button onclick="event.stopPropagation();removeTicker(\''+sym+'\')" style="background:none;border:none;color:'+(active?'var(--accent)':'var(--muted)')+';font-size:14px;padding:0;line-height:1;cursor:pointer;margin-left:2px">×</button>'
       +'</div>';
   }).join('');
