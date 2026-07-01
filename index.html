@@ -751,7 +751,7 @@ var positions = [];
 var priceCache = {};
 
 // ═══════════════════════════════════════════════════════
-//  AUTO SCAN — sequential, rate-limited, max 6 tickers
+//  AUTO SCAN — sequential, rate-limited (450ms/call queue keeps us under API limits)
 // ═══════════════════════════════════════════════════════
 var autoScanResults = [];
 var autoScanRunning = false;
@@ -809,7 +809,7 @@ async function runAutoScan(){
   var body=document.getElementById('auto-scan-body');
   if(!body){ autoScanRunning=false; return; }
 
-  var list=(tickerList.length?tickerList:['SPY','QQQ']).slice(0,6);
+  var list=(tickerList.length?tickerList:['SPY','QQQ']);
 
   // If no TD key, do a fast rule-based scan using cached price bar data only
   if(!TD_KEY){
@@ -826,17 +826,14 @@ async function runAutoScan(){
       var chgTxt=chgEl?chgEl.textContent.replace('%','').replace('+',''):'0';
       var chg=parseFloat(chgTxt)||0;
       var scored=scoreSignal({price:price,chg:chg,rsi:null,ma20:null,vix:vix});
-      results.push({sym:sym,price:price,chg:chg,rsi:null,ma20:null,score:scored.score,signal:scored.signal,action:autoScanAction(scored.signal),reason:buildAutoScanReason(chg,null,null,price,scored)});
+      var r={sym:sym,price:price,chg:chg,rsi:null,ma20:null,score:scored.score,signal:scored.signal,action:autoScanAction(scored.signal),reason:buildAutoScanReason(chg,null,null,price,scored)};
+      results.push(r);
+      colorOnePill(sym, r.signal, r.score); // color immediately
     });
     results.sort(function(a,b){return b.score-a.score;});
     autoScanResults=results;
     renderAutoScan(results,vix);
-    // Re-render pills with colors
-    var el=document.getElementById('ticker-list');
-    if(el) renderTickerList._orig ? renderTickerList._orig() : (function(){
-      var tmp=renderTickerList; renderTickerList=tmp; tmp();
-    })();
-    colorCodePills();
+    renderTickerList(); // full refresh so all pills reflect final colors/scores
     autoScanRunning=false;
     return;
   }
@@ -858,7 +855,9 @@ async function runAutoScan(){
       if(closes.length>=15) rsi14=calcRSI(closes,14);
       if(closes.length>=20) ma20=avg(closes.slice(-20));
       var scored=scoreSignal({price:price,chg:chg,rsi:rsi14,ma20:ma20,vix:vix});
-      results.push({sym:sym,price:price,chg:chg,rsi:rsi14,ma20:ma20,score:scored.score,signal:scored.signal,action:autoScanAction(scored.signal),reason:buildAutoScanReason(chg,rsi14,ma20,price,scored)});
+      var r={sym:sym,price:price,chg:chg,rsi:rsi14,ma20:ma20,score:scored.score,signal:scored.signal,action:autoScanAction(scored.signal),reason:buildAutoScanReason(chg,rsi14,ma20,price,scored)};
+      results.push(r);
+      colorOnePill(sym, r.signal, r.score); // color as soon as this ticker is done
     }catch(e){
       results.push({sym:sym,price:0,chg:0,score:0,signal:'NEUTRAL',action:'Iron Condor',reason:'Rate limit — retry in 1 min'});
     }
@@ -867,7 +866,7 @@ async function runAutoScan(){
   results.sort(function(a,b){return b.score-a.score;});
   autoScanResults=results;
   renderAutoScan(results,vix);
-  colorCodePills();
+  renderTickerList(); // full refresh so all pills reflect final colors/scores
   autoScanRunning=false;
 }
 
@@ -937,17 +936,26 @@ function renderAutoScan(results,vix){
   body.innerHTML=html;
 }
 
-// Color-code the ticker pills based on scan results
-function colorCodePills(){
-  if(!autoScanResults.length) return;
-  var map={};
-  autoScanResults.forEach(function(r){ map[r.sym]=r.signal; });
-  var pills=document.querySelectorAll('#ticker-list .pill-btn');
+// Color a single pill immediately as its scan result arrives
+function colorOnePill(sym, signal, score){
+  var pills = document.querySelectorAll('#ticker-list .pill-btn');
   pills.forEach(function(p){
-    var sym=p.getAttribute('data-sym');
-    if(!sym||!map[sym]) return;
-    p.classList.remove('pill-bull','pill-bear','pill-neutral');
-    p.classList.add('pill-'+map[sym].toLowerCase());
+    if(p.getAttribute('data-sym') !== sym) return;
+    var c = autoScanColor(signal);
+    p.style.borderColor = c;
+    // Update score badge if present
+    var badge = p.querySelector('.pill-score');
+    if(badge){ badge.textContent = score; badge.style.color = c; }
+    else {
+      // Add score badge inline
+      var sym_el = p.querySelector('span');
+      if(sym_el) sym_el.style.color = c;
+      var b = document.createElement('span');
+      b.className = 'pill-score';
+      b.style.cssText = 'font-size:8px;font-weight:900;color:'+c+';margin-left:1px';
+      b.textContent = score;
+      p.insertBefore(b, p.querySelector('button'));
+    }
   });
 }
 
@@ -1015,105 +1023,10 @@ async function runDeepScan(sym){
   }
 }
 
-// ── HOOK: patch renderTickerList to re-color pills after render ──
-var _patchDone=false;
-function _patchTickerListRender(){
-  if(_patchDone) return;
-  _patchDone=true;
-  var orig=renderTickerList;
-  renderTickerList=function(){
-    orig();
-    colorCodePills();
-    clearTimeout(window._scanDebounce);
-    window._scanDebounce=setTimeout(runAutoScan,1000);
-  };
-}
-
-// ── appInit ──
-
-function autoScanAction(signal){
-  if(signal==='BULLISH') return 'Bull Call Spread';
-  if(signal==='BEARISH') return 'Bear Put Spread';
-  return 'Iron Condor';
-}
-
-function autoScanColor(signal){
-  if(signal==='BULLISH') return 'var(--green)';
-  if(signal==='BEARISH') return 'var(--red)';
-  return 'var(--amber)';
-}
-
-function autoScanSignalClass(signal){
-  if(signal==='BULLISH') return 'bull';
-  if(signal==='BEARISH') return 'bear';
-  return 'neutral';
-}
-
-async function runAutoScan(){
-  if(autoScanRunning) return;
-  autoScanRunning = true;
-  var body = document.getElementById('auto-scan-body');
-  if(!body) return;
-
-  var list = tickerList.length ? tickerList : ['SPY','QQQ'];
-  body.innerHTML = '<div class="scan-loading"><span class="dot"></span><span class="dot"></span><span class="dot"></span>'
-    + '<span style="margin-left:4px">Scanning '+list.length+' ticker'+(list.length>1?'s':'')+'…</span></div>';
-
-  var vix = parseFloat((document.getElementById('m-vix')||{}).textContent||0) || 20;
-  var results = [];
-
-  for(var i=0; i<list.length; i++){
-    var sym = list[i];
-    try{
-      var price = 0, chg = 0, closes = [], rsi14 = null, ma20 = null;
-      if(TD_KEY){
-        var q = await cachedFetch('/quote?symbol='+sym, 60000).catch(function(){return null;});
-        var h = await cachedFetch('/time_series?symbol='+sym+'&interval=1day&outputsize=25', 300000).catch(function(){return null;});
-        if(q){ price = parseFloat(q.close||q.price||0); chg = parseFloat(q.percent_change||0); }
-        if(h && h.values) closes = h.values.map(function(v){return parseFloat(v.close);}).reverse();
-        if(closes.length>=15) rsi14 = calcRSI(closes,14);
-        if(closes.length>=20) ma20 = avg(closes.slice(-20));
-      } else {
-        // No key: use cached price from price bar if available
-        price = priceCache[sym] || 0;
-      }
-      var scored = scoreSignal({price:price, chg:chg, rsi:rsi14, ma20:ma20, vix:vix});
-      results.push({
-        sym: sym, price: price, chg: chg, rsi: rsi14, ma20: ma20,
-        score: scored.score, signal: scored.signal, bull: scored.bull, bear: scored.bear,
-        action: autoScanAction(scored.signal),
-        reason: buildAutoScanReason(sym, chg, rsi14, ma20, price, scored)
-      });
-    } catch(e){
-      results.push({sym:sym, price:0, chg:0, score:0, signal:'NEUTRAL', action:'Iron Condor', reason:'Could not fetch data'});
-    }
-  }
-
-  // Sort by score descending
-  results.sort(function(a,b){ return b.score - a.score; });
-  autoScanResults = results;
-  renderAutoScan(results, vix);
-  autoScanRunning = false;
-}
-
-function buildAutoScanReason(sym, chg, rsi, ma20, price, scored){
-  var parts = [];
-  if(Math.abs(chg) > 0.3) parts.push((chg>0?'+':'')+chg.toFixed(1)+'% today');
-  if(rsi){ if(rsi>65) parts.push('RSI '+rsi.toFixed(0)+' overbought'); else if(rsi<35) parts.push('RSI '+rsi.toFixed(0)+' oversold'); else parts.push('RSI '+rsi.toFixed(0)); }
-  if(ma20 && price){ parts.push(price>ma20?'above 20MA':'below 20MA'); }
-  if(!parts.length) parts.push('No key — rule-based estimate');
-  return parts.join(' · ');
-}
-
-function launchFromScan(sym){
-  currentAnalyzeTicker = sym;
-  renderTickerList();
-  // Scroll to on-demand section
-  var panel = document.getElementById('ticker-input-panel');
-  if(panel) panel.scrollIntoView({behavior:'smooth', block:'start'});
-  // Auto-run analysis
-  setTimeout(runAnalysis, 200);
-}
+// ── Ticker-list select/add/remove should never silently trigger a full rescan.
+// Auto-scan only runs on load, on explicit "Rescan" click, or when the pinned
+// ticker list composition actually changes (add/remove) — see scheduleAutoScan().
+function _patchTickerListRender(){ /* no-op: kept as a stable init hook */ }
 
 async function runDeepScan(sym){
   if(!CLAUDE_KEY){ 
@@ -1266,8 +1179,11 @@ function appInit(){
   // Update mood panel after a short delay to let prices populate
   setTimeout(updateMoodPanel, 1500);
   setTimeout(updateMoodPanel, 4000);
-  // Auto scan after prices have a chance to load
-  setTimeout(runAutoScan, 2200);
+  // Auto scan: no-key path runs at 1s (just reads price bar), TD path at 2s (waits for price fetch)
+  setTimeout(function(){
+    if(!TD_KEY) runAutoScan(); // fast path — reads price bar data
+  }, 900);
+  setTimeout(runAutoScan, 2000); // full scan with TD key (or re-run no-key if still loading)
 }
 
 // ── SETTINGS ──
@@ -1457,30 +1373,43 @@ function renderTickerList(){
     var active = sym === currentAnalyzeTicker;
     // Scan signal color for this pill (set after scan runs)
     var scanRes = (autoScanResults||[]).find(function(r){return r.sym===sym;});
+    var signalBg = scanRes
+      ? (scanRes.signal==='BULLISH'?'rgba(34,197,94,0.14)':scanRes.signal==='BEARISH'?'rgba(239,68,68,0.14)':'rgba(245,158,11,0.14)')
+      : 'var(--s2)';
     var sigColor = scanRes
       ? (scanRes.signal==='BULLISH'?'var(--green)':scanRes.signal==='BEARISH'?'var(--red)':'var(--amber)')
-      : (active?'var(--accent)':'var(--border2)');
+      : 'var(--border2)';
     var borderColor = active ? 'var(--accent)' : sigColor;
-    var bg = active ? 'rgba(255,107,53,0.12)' : 'var(--s2)';
+    var textColor = active ? 'var(--accent)' : (scanRes ? sigColor : 'var(--text)');
+    var bg = active ? 'rgba(255,107,53,0.16)' : signalBg;
     return '<div class="pill-btn" data-sym="'+sym+'" onclick="selectListTicker(\''+sym+'\')" '
-      +'style="display:inline-flex;align-items:center;gap:4px;padding:6px 10px 6px 12px;border-radius:20px;border:1.5px solid '+borderColor+';background:'+bg+';cursor:pointer;transition:all .15s;white-space:nowrap">'
-      +'<span style="font-size:13px;font-weight:900;color:'+(active?'var(--accent)':scanRes?sigColor:'var(--text)')+'">'+sym+'</span>'
-      +(scanRes?'<span style="font-size:8px;font-weight:800;color:'+sigColor+'">'+scanRes.score+'</span>':'')
+      +'style="display:inline-flex;align-items:center;gap:4px;padding:6px 10px 6px 12px;border-radius:20px;border:2px solid '+borderColor+';background:'+bg+';cursor:pointer;transition:all .15s;white-space:nowrap">'
+      +'<span style="font-size:13px;font-weight:900;color:'+textColor+'">'+sym+'</span>'
+      +(scanRes?'<span class="pill-score" style="font-size:8px;font-weight:900;color:'+sigColor+'">'+scanRes.score+'</span>':'')
       +'<button onclick="event.stopPropagation();removeTicker(\''+sym+'\')" style="background:none;border:none;color:'+(active?'var(--accent)':'var(--muted)')+';font-size:14px;padding:0;line-height:1;cursor:pointer;margin-left:2px">×</button>'
       +'</div>';
   }).join('');
 }
 
+// Debounced rescan — only fired when the pinned ticker list actually changes
+// (add/remove), never on a simple selection click.
+function scheduleAutoScan(){
+  clearTimeout(window._scanDebounce);
+  window._scanDebounce = setTimeout(runAutoScan, 800);
+}
+
 function addTicker(){
   var v = document.getElementById('sig-inp').value.trim().toUpperCase();
   if(!v) return;
-  if(!tickerList.includes(v)){
+  var isNew = !tickerList.includes(v);
+  if(isNew){
     tickerList.push(v);
     saveTickerList();
   }
   currentAnalyzeTicker = v;
   document.getElementById('sig-inp').value = '';
   renderTickerList();
+  if(isNew) scheduleAutoScan(); // new ticker added — refresh scan to include it
   // Also immediately launch analysis on the new ticker
   setTimeout(runAnalysis, 300);
 }
@@ -1490,8 +1419,11 @@ function removeTicker(sym){
   if(currentAnalyzeTicker === sym) currentAnalyzeTicker = tickerList[0] || '';
   saveTickerList();
   renderTickerList();
+  scheduleAutoScan(); // list composition changed — refresh scan
 }
 
+// Just selects which ticker "GO" will analyze — does NOT trigger a scan or
+// run analysis. Only re-renders pills to update the active/selected outline.
 function selectListTicker(sym){
   currentAnalyzeTicker = sym;
   renderTickerList();
